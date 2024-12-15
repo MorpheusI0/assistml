@@ -1,10 +1,8 @@
 # AssistML: An alternative to AutoML recommending ML Solutions
 
-> 21.04.2022
+> 15.12.2024
 
 <img src="./assistML.png"/>
-
-
 
 ## Abstract
 
@@ -22,18 +20,14 @@ This paper explains how AssistML, a novel concept to recommend ML solutions, i. 
 
 <img src="./assistML_archi.png"/>
 
-
-
 ## Reproducibility
 
 The following steps need to be carried out to run the prototype of AssistML and reproduce the evaluation setup:  
 
 1. Clone the repository.
-2. Satisfy dependencies.
-3. Create repository in Mongo with the provided data.
-4. Launch the API (”assist.R”) and web interface (”assist dashboard.py”).
-5. In a web browser go to http://localhost:8050
-6. To reproduce evaluation setting q-steel-20, watch the video q-steel-20.mkv (see below).  Other evaluation settings can be reproduced in a
+2. Launch the docker compose configuration
+3. In a web browser go to http://localhost:8080
+4. To reproduce evaluation setting q-steel-20, watch the video q-steel-20.mkv (see below).  Other evaluation settings can be reproduced in a
    similar manner.  
 
 ## System Requirements
@@ -42,6 +36,47 @@ The following steps need to be carried out to run the prototype of AssistML and 
   - 2 CPUs at 2.5 GHz
   - 8 GB of memory 
   - 40 GB of disk space.  
+
+## Dockerized Version
+
+This repository contains a dockerized version of the project.
+
+### Prerequisites
+
+- Docker
+- Docker Compose
+
+### Installation and Start
+
+1. Clone the repository:
+    ```bash
+    git clone https://github.com/MorpheusI0/assistml.git
+    cd assistml
+    ```
+
+2. Build and start the Docker containers:
+    ```bash
+    docker-compose up --build
+    ```
+
+3. The application should now be running and accessible at `http://localhost:8080`.
+
+### Docker Commands
+
+- To stop the containers:
+    ```bash
+    docker-compose down
+    ```
+
+- To start the containers in the background:
+    ```bash
+    docker-compose up -d
+    ```
+
+- To view the logs of the containers:
+    ```bash
+    docker-compose logs
+    ```
 
 ## Demo Video
 

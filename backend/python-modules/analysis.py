@@ -18,11 +18,10 @@ from datetime import datetime
 file_list=[]
 file_dict_menu=OrderedDict()
 k=1
-dir=os.path.dirname(os.path.abspath(__file__))
-dir=dir+"/Output/FPGROWTH/"
+fpgrowth_dir = "/app/output/FPGROWTH/"
 max_count=0
 li=[]
-for filename in glob.glob(os.path.join(dir, '*.json')):
+for filename in glob.glob(os.path.join(fpgrowth_dir, '*.json')):
         val=""
         name=""
         indb= filename.rfind("\\")
@@ -38,7 +37,7 @@ for filename in glob.glob(os.path.join(dir, '*.json')):
             max_count=yi
 
 fn="EXP_"+str(max_count)+".json"
-filepath=dir+fn
+filepath = os.path.join(fpgrowth_dir, fn)
 print(filepath)
 #filepath="C:/Users/Javed/Desktop/INFOTECH/Infotech Semester 3/Study Project/git/mlm-perf/mlm-perf-modules/Output/FPGROWTH/EXP_26.json"
 
@@ -263,9 +262,11 @@ write_ready=json.dumps(new_data,sort_keys=True)
 filedotindex=filename.find(".")
 
 filename=filename[:filedotindex]
-dir=os.path.dirname(os.path.abspath(__file__))
-dir=dir+"/Output/FPGROWTH_FILTERED/"
-filepath= dir+"EXP_"+str(max_count)+"_selected.json"
+fpgrowth_filtered_dir = "/app/output/FPGROWTH_FILTERED/"
+if not os.path.exists(fpgrowth_filtered_dir):
+    os.makedirs(fpgrowth_filtered_dir)
+selected_filename = "EXP_"+str(max_count)+"_selected.json"
+filepath = os.path.join(fpgrowth_filtered_dir, selected_filename)
 
 with open(filepath, "a") as myfile:
     myfile.write(write_ready)
@@ -276,7 +277,7 @@ database details
 '''
 mylist = []
 print("Connected to database")
-myclient = pymongo.MongoClient("mongodb://localhost:27017/")
+myclient = pymongo.MongoClient("mongodb://admin:admin@mongodb/")
 dbname = myclient["assistml"]
 collection_rules = dbname["rules"]
 mylist.append(json.loads(write_ready))

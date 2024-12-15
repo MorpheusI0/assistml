@@ -24,9 +24,14 @@ import sys
 def main():
     import os
     #os.chdir("../")
-    data_base_path = os.path.join(os.getcwd(), "1_data")
-    pickle_file_base_path = os.path.join(os.getcwd(), "3_pickle")
-    json_file_base_path = os.path.join(os.getcwd(), "3_pickle")
+    app_dir = "/app"
+    data_base_path = os.path.join(app_dir, "1_data")
+    pickle_file_base_path = os.path.join(app_dir, "3_pickle")
+    json_file_base_path = os.path.join(app_dir, "3_pickle")
+
+    for path in [app_dir, data_base_path, pickle_file_base_path, json_file_base_path]:
+        if not os.path.exists(path):
+            os.makedirs(path)
     #os.chdir(os.path.join(os.getcwd(), "2_code"))
 
     # parse input parameters
@@ -37,7 +42,7 @@ def main():
     args = parser.parse_args()
     modelName = args.modelName
 
-    myclient = pymongo.MongoClient("mongodb://localhost:27017/")
+    myclient = pymongo.MongoClient("mongodb://admin:admin@mongodb/")
     dbname = myclient["assistml"]
     collectionname = dbname["base_models"]
     collection_datasets = dbname["datasets"]
@@ -76,7 +81,7 @@ def main():
 
     import joblib
 
-    filename = '../3_pickle/' + model['Model']['Info']['name'] + '.pkl'
+    filename = os.path.join(pickle_file_base_path, model['Model']['Info']['name'] + '.pkl')
     # with open(filename, 'wb') as file:
     #    joblib.dump(lr, file)
     with open(filename, 'rb') as file:

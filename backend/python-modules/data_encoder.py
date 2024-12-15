@@ -1,4 +1,4 @@
-
+import os
 import sys
 import pandas as pd
 import numpy as np
@@ -23,7 +23,7 @@ def process_cmd_arg(cmd_argument, available_elements_db):
 def main():
 
     # Database connection
-    myclient = pymongo.MongoClient("mongodb://localhost:27017/")
+    myclient = pymongo.MongoClient("mongodb://admin:admin@mongodb/")
     dbname = myclient["assistml"]
     collection_enriched = dbname["enriched_models"]
     print("Connected to database")
@@ -39,7 +39,8 @@ def main():
         if(len(models_list) != 0):
             print("Found model names list in cmd argument")
             for model_name in models_list:
-                data_new = data_new.append(data[data.model_name == model_name],ignore_index=True)
+                subset = data[data.model_name == model_name]
+                data_new = pd.concat([data_new, subset], ignore_index=True)
             print(data_new)
         else:
             print("Using all models for csv generation")
@@ -61,7 +62,11 @@ def main():
 
 
     output_file_name="merged_data_" + new_file_name +"selectedcols.csv"
-    data_new.to_csv(output_file_name, index=False)
+    working_dir = "/app/working"
+    if not os.path.exists(working_dir):
+        os.makedirs(working_dir)
+    output_file_path = os.path.join(working_dir, output_file_name)
+    data_new.to_csv(output_file_path, index=False)
 
 
 

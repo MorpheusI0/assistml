@@ -24,18 +24,27 @@ upload_data<-function(req){
   print("Structure of uploaded file")
   print(str(files))
 
-
+  file_info <- files[[1]]
+  file_name <- names(file_info)[1]
+  temp_file_path <- file_info[[file_name]]$tempfile
+  print(paste("Temporary file path:", temp_file_path))
 
 
   # print(paste("Writing",files[[1]]$upload$filename[[1]]))
-  newcsv<-read.csv(files[[1]]$`Content-Disposition`$tempfile,header = T,as.is = T,dec = ".")
+  newcsv<-read.csv(temp_file_path,header = T,as.is = T,dec = ".")
   print("Sample of uploaded data")
   print(head(newcsv))
+
+  upload_dir <- "/uploads"
+  if (!dir.exists(upload_dir)) {
+    dir.create(upload_dir)
+  }
+
   write.csv(x=newcsv,
-        file =files[[1]]$`Content-Disposition`$filename[[1]],
+        file = file.path(upload_dir, file_info[[file_name]]$filename),
         row.names = F)
 
-  print(paste("Just uploaded",files[[1]]$`Content-Disposition`$filename[[1]]))
+  print(paste("Just uploaded",file_info[[file_name]]$filename))
   # close.connection(data_upload)
 }
 
@@ -101,7 +110,7 @@ start.time <- Sys.time()
   print("Connecting to mongo to get base models")
   base_models<-mongolite::mongo(collection = "base_models",
                                 db = "assistml",
-                                url = "mongodb://localhost")
+                                url = "mongodb://admin:admin@mongodb")
 
   # Obtaining default values to complete the query
   defaults<-base_models$find('{}',
@@ -114,7 +123,7 @@ start.time <- Sys.time()
   print("Connecting to mongo to get enriched models")
   enriched_models<-mongolite::mongo(collection = "enriched_models",
                                     db="assistml",
-                                    url="mongodb://localhost")
+                                    url="mongodb://admin:admin@mongodb")
 
 
   # more_defaults<-read.csv("quantile_binary.csv",header = T)
@@ -144,7 +153,7 @@ start.time <- Sys.time()
 
 
   # Starting connection to the queries database to store this one.
-  querydb<-mongolite::mongo(db="assistml",collection = "queries",url="mongodb://localhost")
+  querydb<-mongolite::mongo(db="assistml",collection = "queries",url="mongodb://admin:admin@mongodb")
   queryId<-querydb$count()+1
 
   # Inserting query record before doing analysis
@@ -490,7 +499,12 @@ start.time <- Sys.time()
   models_report<-generate_results(models_choice,usecase_rules,warnings,distrust_pts,query_record,distrust_basis)
 
 
-  write(rjson::toJSON(models_report,indent = 3),"models_report.json")
+  working_dir <- "/app/working"
+  if (!dir.exists(working_dir)) {
+    dir.create(working_dir)
+  }
+  models_report_path <- file.path(working_dir, "models_report.json")
+  write(rjson::toJSON(models_report,indent = 3),models_report_path)
 
   querydb$update(
     query=eval(parse(text = paste0("'{\"number\":",queryId,"}'"))),

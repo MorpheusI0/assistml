@@ -192,7 +192,7 @@ query_data<-function(dataset,semantic_types,dataset_name,use_case){
   # write(rjson::toJSON(data_features),file = "data_features.json")
 
 ## Section Mongo Mode query data:Obtaining data features from Mongo after python data_profiler computed them####
-  mongodata<-mongolite::mongo("datasets","assistml",url = "mongodb://localhost")
+  mongodata<-mongolite::mongo("datasets","assistml",url = "mongodb://admin:admin@mongodb")
 
 
   current_data<-mongodata$find(query = eval(parse(text = paste0("'{\"Info.use_case\":\"",use_case,"\",\"Info.dataset_name\":\"",dataset_name,"\"}'"))),
@@ -226,7 +226,12 @@ query_data<-function(dataset,semantic_types,dataset_name,use_case){
   }
 
 
-  write(rjson::toJSON(data_features),file = "python_data_features.json")
+  working_dir <- "/app/working"
+  if (!dir.exists(working_dir)) {
+    dir.create(working_dir)
+  }
+  file_path <- file.path(working_dir, "python_data_features.json")
+  write(rjson::toJSON(data_features),file = file_path)
 
 
   return(data_features)

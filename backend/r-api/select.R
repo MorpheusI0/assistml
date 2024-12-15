@@ -27,15 +27,15 @@ choose_models<-function(task_type,output_type,data_features){
 
   datasetsMongo<-mongolite::mongo(collection = "datasets",
                                   db = "assistml",
-                                  url = "mongodb://localhost")
+                                  url = "mongodb://admin:admin@mongodb")
 
   base_models<-mongolite::mongo(collection = "base_models",
                                 db = "assistml",
-                                url = "mongodb://localhost")
+                                url = "mongodb://admin:admin@mongodb")
 
   enriched_models<-mongolite::mongo(collection = "enriched_models",
                                     db="assistml",
-                                    url="mongodb://localhost")
+                                    url="mongodb://admin:admin@mongodb")
 
 
 

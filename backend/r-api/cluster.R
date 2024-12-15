@@ -27,17 +27,29 @@ cluster_models<-function(selected_models,preferences){
     print(head(selected_models))
     }
 
-  if(file.exists("cluster.txt")){
-    file.remove("cluster.txt")
+  working_dir <- "/app/working"
+  if (!dir.exists(working_dir)) {
+    dir.create(working_dir)
   }
 
-  write("Cluster_models() results \n\n",file = "cluster.txt",append = T)
+  cluster_txt_path <- file.path(working_dir, "cluster.txt")
+  cluster_dbscan_path <- file.path(working_dir, "cluster_dbscan.csv")
+  cluster_nacc_path <- file.path(working_dir, "cluster_nacc.csv")
+  cluster_acc_path <- file.path(working_dir, "cluster_acc.csv")
+
+
+
+  if(file.exists(cluster_txt_path)){
+    file.remove(cluster_txt_path)
+  }
+
+  write("Cluster_models() results \n\n",file = cluster_txt_path,append = T)
 
 
   cluster.exp<-dbscan::dbscan(selected_models[,names(selected_models) %in% c("accuracy","precision","recall","training_time_std")],eps = 0.05,minPts = 3,borderPoints = F)
   selected_models$dbscan<-cluster.exp$cluster-1
 
-  write.csv(selected_models,file = "cluster_dbscan.csv")
+  write.csv(selected_models,file = cluster_dbscan_path)
   rm(cluster.exp)
 
   ## Section:Selecting a cluster####
@@ -81,9 +93,9 @@ print("So the selected cluster(s) are...")
 print(cluster.fit[cluster.fit>majority.ratio])
 
 # Analysis files for cluster discussion ####
-write("Acceptable models \n",file = "cluster.txt",append = T)
-write(names(cluster.fit),file = "cluster.txt",append = T)
-write(cluster.fit,file = "cluster.txt",append = T)
+write("Acceptable models \n",file = cluster_txt_path,append = T)
+write(names(cluster.fit),file = cluster_txt_path,append = T)
+write(cluster.fit,file = cluster_txt_path,append = T)
 
 
 clusters.acc<-cluster.fit[cluster.fit>majority.ratio]
@@ -125,9 +137,9 @@ print("So the selected cluster(s) are...")
 print(cluster.misfit[cluster.misfit>majority.ratio])
 
 # Files for analysis of cluster distribution####
-write("\n Nearly acceptable models \n",file = "cluster.txt",append = T)
-write(names(cluster.misfit),file = "cluster.txt",append = T)
-write(cluster.misfit,file = "cluster.txt",append = T)
+write("\n Nearly acceptable models \n",file = cluster_txt_path,append = T)
+write(names(cluster.misfit),file = cluster_txt_path,append = T)
+write(cluster.misfit,file = cluster_txt_path,append = T)
 
 
 clusters.nacc<-cluster.misfit[cluster.misfit>majority.ratio]
@@ -149,7 +161,7 @@ if(length(clusters.nacc)>0){
 
 
 
-  write.csv(selected_models[selected_models$dbscan %in% selected.anticluster , names(selected_models) %in% c("model_name")],row.names = F,file = "cluster_nacc.csv")
+  write.csv(selected_models[selected_models$dbscan %in% selected.anticluster , names(selected_models) %in% c("model_name")],row.names = F,file = cluster_nacc_path)
 
   return(list(
     "acceptable_models"=selected_models[selected_models$dbscan %in% selected.cluster , names(selected_models) %in% c("model_name")],
@@ -173,7 +185,7 @@ if(length(clusters.nacc)>0){
 }
 
 
-write.csv(selected_models[selected_models$dbscan %in% selected.cluster , names(selected_models) %in% c("model_name")],row.names = F,file = "cluster_acc.csv")
+write.csv(selected_models[selected_models$dbscan %in% selected.cluster , names(selected_models) %in% c("model_name")],row.names = F,file = cluster_acc_path)
 
 
 

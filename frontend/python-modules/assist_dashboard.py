@@ -273,7 +273,7 @@ def plotting_response(acceptable_models, nearly_acceptable_models):
     accuracy = []
     acceptable_or_nearly = []
     models_names = []
-    client = pymongo.MongoClient(port=27017)
+    client = pymongo.MongoClient("mongodb://admin:admin@mongodb/")
     db = client["assistml"]
     enriched_models = db["enriched_models"]
 
@@ -305,12 +305,14 @@ def plotting_response(acceptable_models, nearly_acceptable_models):
 
 
 def upload_dataset_R_backend(file_content):
-    url = "http://localhost:4321/upload"
-    csv_files = sorted(glob.glob(os.path.join(os.getcwd(),"*.csv")),key=os.path.getmtime)
+    url = "http://backend:8080/upload"
+    upload_dir = "/uploads/"
+    csv_files = sorted(glob.glob(os.path.join(upload_dir,"*.csv")),key=os.path.getmtime)
     # csv_files.sort(key=os.path.getctime)
     file = csv_files[-1].split("/")[-1]
     print(file)
-    with open(str(file), "r") as dataset_uploaded:
+    print("\n")
+    with open(os.path.join(upload_dir, file), "r") as dataset_uploaded:
         file_dict = {str(file): dataset_uploaded}
         print(file_dict)
         response = requests.post(url, files=file_dict)
@@ -329,7 +331,7 @@ def api_call_R_backend(class_feature_type, feature_type_list, classification_out
     feature_type_list = feature_type_list.replace('"', '')
     feature_type_list = list(feature_type_list.strip('[]').split(','))
 
-    url = "http://localhost:4321/assistml"
+    url = "http://backend:8080/assistml"
     params_json = {
         "classif_type": class_feature_type,
         "classif_output": classification_output,
@@ -583,7 +585,7 @@ header = html.Div([
 
 # Database details
 # same id as the api 192.168.221.146
-myclient = pymongo.MongoClient("mongodb://localhost:27017/")
+myclient = pymongo.MongoClient("mongodb://admin:admin@mongodb/")
 dbname = myclient["assistml"]
 collection_datasets = dbname["datasets"]
 enriched_datasets = dbname["enriched_models"]
@@ -1061,7 +1063,7 @@ def update_output(value):
 
 submit_button = html.Div([
     dbc.Button("Analyse Dataset", id="submit_button",
-               color="primary", className="mr-1", block=True,
+               color="primary", className="mr-1",
                style={"justify": "center", 'block': 'True', 'width': '100%', "background-color": "rgb(176,196,222)",
                       "font-color": "black"},
                ),
@@ -1192,7 +1194,9 @@ def update_usecase_dropdown(submit_btn_clicks):
 def update_output(list_of_contents, filename):
     content_type, content_string = list_of_contents.split(',')
     decoded = base64.b64decode(content_string)
-    with open(filename, 'w') as csv_file:
+    upload_dir = "/uploads/"
+    os.makedirs(upload_dir, exist_ok=True)
+    with open(os.path.join(upload_dir, filename), 'w') as csv_file:
         for line in str(decoded.decode('utf-8')).splitlines():
             csv_file.write(line)
             csv_file.write('\n')

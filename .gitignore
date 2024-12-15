@@ -1,0 +1,91 @@
+# Python-specific ignores
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pkl
+*.log
+*.sqlite3
+*.ipynb_checkpoints
+
+# Virtual environment
+.env/
+.venv/
+env/
+venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Distribution/build artifacts
+*.egg
+*.egg-info/
+dist/
+build/
+*.whl
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# Django stuff:
+*.db
+*.sqlite3
+/media/
+*.pot
+*.pyc
+*.pyo
+*.mo
+
+# pytest
+.cache/
+.pytest_cache/
+
+# IDE-specific ignores
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# R-specific ignores
+.Rhistory
+.RData
+.Rproj.user/
+*.Rproj
+*.Rhistory
+*.Ruserdata
+*.Rbuildignore
+
+# RStudio project files
+.Rproj.user/
+.Rproj
+.Rhistory
+
+# Data files
+*.csv
+*.tsv
+*.rds
+*.Rdata
+
+# Compiled R packages or objects
+*.o
+*.so
+*.dll
+
+# Temporary files created by R
+*.out
+*.log
+*.aux
+
+# Miscellaneous
+*.DS_Store
+*.Thumbs.db
+
+# Logs and temporary files
+logs/
+*.log
+*.tmp
+*.bak
+*.swp
+*.swo

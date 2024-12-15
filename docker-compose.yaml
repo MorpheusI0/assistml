@@ -1,0 +1,49 @@
+version: "4.2"
+
+name: assistml
+services:
+
+  mongodb:
+    container_name: assistml_mongodb
+    hostname: mongodb
+    image: mongo:4.2-bionic
+    command: mongod
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=admin
+      - MONGO_INITDB_DATABASE=assistml
+    volumes:
+      - "mongodb_data:/data/db"
+      - "./repository/:/repository/:ro"
+      - "./repository/init-mongo.sh:/docker-entrypoint-initdb.d/init-mongo.sh:ro"
+
+  backend:
+    container_name: assistml_backend
+    hostname: backend
+    restart: unless-stopped
+    build: ./backend/
+    depends_on:
+      - mongodb
+    volumes:
+      - "./backend/python-modules/:/app/python-modules/:ro"
+      - "./backend/r-api/:/app/r-api/:ro"
+      - "./source-code/:/app/1_data/:ro"
+
+  dashboard:
+    container_name: assistml_dashboard
+    restart: unless-stopped
+    build: ./frontend/
+    depends_on:
+      - backend
+      - mongodb
+    ports:
+      - "8080:8050"
+    volumes:
+      - "./frontend/python-modules/:/app/:ro"
+
+volumes:
+  mongodb_data:
+

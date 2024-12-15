@@ -16,6 +16,14 @@ rank_models<-function(groupcodes,preferences){
 
   verbose<-T
 
+  working_dir <- "/app/working"
+  if (!dir.exists(working_dir)) {
+    dir.create(working_dir)
+  }
+
+  accms_ranked_csv_path <- file.path(working_dir, "accms_ranked.csv")
+  naccms_ranked_csv_path <- file.path(working_dir, "naccms_ranked.csv")
+
   userpref<-sort(unlist(preferences))
 
   sort_priorities<-c()
@@ -46,7 +54,7 @@ rank_models<-function(groupcodes,preferences){
   if(verbose){print("Connecting to mongo to get enriched models")}
   enriched_models<-mongolite::mongo(collection = "enriched_models",
                                     db="assistml",
-                                    url="mongodb://localhost")
+                                    url="mongodb://admin:admin@mongodb")
   # Test string of model codes
   # print( paste(groupcodes$acceptable_models,collapse = "\", \"") )
 
@@ -86,7 +94,7 @@ rank_models<-function(groupcodes,preferences){
                                              eval(parse(text = paste0("-",sort_priorities[4])))
                                              )),]
 
-  write.csv(accmodels_data,"accms_ranked.csv") # Careful with query distances
+  write.csv(accmodels_data,accms_ranked_csv_path) # Careful with query distances
 
   print(paste("Finished creating acceptable models rank. Score range:",
               max(accmodels_data$performance_score),
@@ -140,7 +148,7 @@ rank_models<-function(groupcodes,preferences){
                                                                 eval(parse(text = paste0("-",sort_priorities[4])))
     )),]
 
-    write.csv(naccmodels_data,"naccms_ranked.csv") # Careful with query distances
+    write.csv(naccmodels_data,naccms_ranked_csv_path) # Careful with query distances
 
     print(paste("Finished creating nearly acceptable models rank. Score range:",
                 max(naccmodels_data$performance_score),
@@ -195,7 +203,7 @@ shortlist_models<-function(ranked_models){
 
 ## Section :Shortlisting the naccmodels####
 
-  if(ranked_models$naccmodels_rank %in% "none"){
+  if(all(ranked_models$naccmodels_rank %in% "none")) {
     # Case there are no NACC models to rank
     print(paste("Finished choosing. Acceptable models:",nrow(accmodels_choice)))
 

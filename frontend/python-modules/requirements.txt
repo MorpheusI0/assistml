@@ -1,0 +1,8 @@
+dash
+dash_bootstrap_components
+dash_renderjson
+pymongo
+pandas
+scipy
+nltk
+scikit-learn

@@ -291,7 +291,7 @@ class DataProfiler():
              'Info.datetime_ratio': dataset_info_json["Info"]['datetime_ratio'],
              'Info.unstructured_ratio': dataset_info_json["Info"]['unstructured_ratio']}
             , {"_id": 0})
-        if (similar_document.count() == 0):
+        if len(list(similar_document)) == 0:
             return False
         else:
             return True
@@ -598,7 +598,7 @@ class DataProfiler():
         # Connect to Database and write json data
         db_write_status = ''
         print("Connected to database")
-        myclient = pymongo.MongoClient("mongodb://localhost:27017/")
+        myclient = pymongo.MongoClient("mongodb://admin:admin@mongodb/")
         dbname = myclient["assistml"]
         self.collection_datasets = dbname["datasets"]
         data_already_in_db = self.check_data_availability_in_db(json.loads(self.json_data))

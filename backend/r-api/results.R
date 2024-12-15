@@ -19,7 +19,7 @@ generate_model_report<-function(picked_model,details){
 
 
 
-  con<-mongolite::mongo("base_models",db="assistml",url="mongodb://localhost")
+  con<-mongolite::mongo("base_models",db="assistml",url="mongodb://admin:admin@mongodb")
   con$info()
 
   accmodel_json<-con$find(query =eval(parse(text = paste0("'{\"Model.Info.name\":{\"$in\":[\"",picked_model,"\"]}}'"))) #,
@@ -29,12 +29,12 @@ generate_model_report<-function(picked_model,details){
 
   enriched_models<-mongolite::mongo(collection = "enriched_models",
                                     db="assistml",
-                                    url="mongodb://localhost")
+                                    url="mongodb://admin:admin@mongodb")
   accmodel_data<-enriched_models$find(query =eval(parse(text = paste0("'{\"model_name\":{\"$in\":[\"",picked_model,"\"]}}'"))))
 
 
   # Getting the dataset annotation
-  datasetsMongo<-mongolite::mongo("datasets",db = "assistml",url = "mongodb://localhost")
+  datasetsMongo<-mongolite::mongo("datasets",db = "assistml",url = "mongodb://admin:admin@mongodb")
   mongo_feats<-datasetsMongo$find(query = eval(parse(text = paste0("'{\"Info.dataset_name\":\"", accmodel_json$Model$Data_Meta_Data$dataset_name,"\" }'") )),
                                   fields = '{"Info":1,"_id":0}')
 
@@ -216,6 +216,10 @@ add_rules<-function(model_report,found_rules){
 
 
   for (i in 1:length(found_rules)) {
+    if (is.null(found_rules[[i]]$full_rule) || is.null(model_leads[1]) ||
+      found_rules[[i]]$full_rule == "" || model_leads[1] == "") {
+        next
+    }
     if(!is.na(
       stringr::str_match(found_rules[[i]]$full_rule,model_leads[1]) #Checks if the fam name matches that of the model being reported
     )){
@@ -406,7 +410,7 @@ generate_results<-function(models_choice,usecase_rules,warnings,distrust_points,
 
 
 
-  if(models_choice$naccms_choice %in% c("none")){
+  if(all(models_choice$naccms_choice %in% c("none"))) {
 
     return(list(
       "summary"=list(

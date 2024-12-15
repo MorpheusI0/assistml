@@ -17,14 +17,14 @@ retrieve_settings<-function(selected_models){
   # Refreshing connection to base_models
   con<-mongolite::mongo("base_models",
                         db="assistml",
-                        url="mongodb://localhost")
+                        url="mongodb://admin:admin@mongodb")
   con$info()
 
   #  Refreshing connection to enriched models
   print("Connecting to mongo to get enriched models")
   enriched_models<-mongolite::mongo(collection = "enriched_models",
                                     db="assistml",
-                                    url="mongodb://localhost")
+                                    url="mongodb://admin:admin@mongodb")
   enriched_models$info()
 
 

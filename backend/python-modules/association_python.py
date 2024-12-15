@@ -19,14 +19,19 @@ from mlxtend.frequent_patterns import association_rules
 
 def main():
 
+    working_dir = "/app/working"
+    if not os.path.exists(working_dir):
+        os.makedirs(working_dir)
+
     # creates json file using the rules generated from the FPGrowth algorithm and store in output/FPGROWTH folder
     def create_save_json_output(rules,ranking_metric,metric_min_score,min_support,total_nr_models):
         flag =0
         rule_found=1
         max_count = 0
-        dir=os.path.dirname(os.path.abspath(__file__))
-        dir=dir+"/Output/FPGROWTH/"
-        for filename in glob.glob(os.path.join(dir, '*.json')):
+        fpgrowth_dir = "/app/output/FPGROWTH/"
+        if not os.path.exists(fpgrowth_dir):
+            os.makedirs(fpgrowth_dir)
+        for filename in glob.glob(os.path.join(fpgrowth_dir, '*.json')):
             val=""
             name=""
             indb= filename.rfind("\\")
@@ -61,8 +66,9 @@ def main():
             print("No Rules Found!")
             dict_super["Rules"] = {}
             max_count=max_count+1
-            outfile="EXP_"+str(max_count)+".json"
-            with open(dir+outfile, "a") as myfile:
+            outfile_name = "EXP_"+str(max_count)+".json"
+            outfile_path = os.path.join(working_dir, outfile_name)
+            with open(outfile_path, "a") as myfile:
                 myfile.write("{}")
             myfile.close()
             rule_found=0
@@ -98,8 +104,9 @@ def main():
         dict_super["Experiment"]=dict_sub1
         json_format=json.dumps(dict_super, indent=4)
         max_count=max_count+1
-        outfile="EXP_"+str(max_count)+".json"
-        with open(dir+outfile, "a") as myfile:
+        outfile_name = "EXP_"+str(max_count)+".json"
+        outfile_path = os.path.join(fpgrowth_dir, outfile_name)
+        with open(outfile_path, "a") as myfile:
             myfile.write(json_format)
         myfile.close()
           
@@ -107,7 +114,7 @@ def main():
     
     # Database details
     '''print("Connected to database")
-    myclient = pymongo.MongoClient("mongodb://localhost:27017/")
+    myclient = pymongo.MongoClient("mongodb://admin:admin@mongodb/")
     dbname = myclient["assistml"]
     collection_enriched = dbname["enriched_models"]
     total_no_models = collection_enriched.count()
@@ -141,9 +148,8 @@ def main():
         rankedby="leverage"
     if(ranker==3):
         rankedby="conviction"
-    
-    
-    Input_File="merged_data_selectedcols.csv"
+
+    Input_File = os.path.join(working_dir, "merged_data_selectedcols.csv")
     df = pd.read_csv(Input_File)
     total_no_models = df.shape[0]
     column_names = df.columns
