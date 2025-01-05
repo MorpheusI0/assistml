@@ -28,9 +28,13 @@ services:
     depends_on:
       - mongodb
     volumes:
-      - "./backend/python-modules/:/app/python-modules/:ro"
-      - "./backend/r-api/:/app/r-api/:ro"
+      - "./backend/modules/:/app/modules/:ro"
+      - "./backend/assistml/:/app/assistml/:ro"
+      - "./backend/run.py:/app/run.py:ro"
+      - "./backend/config.py:/app/config.py:ro"
       - "./source-code/:/app/1_data/:ro"
+    env_file:
+      - backend/backend-docker.env
 
   dashboard:
     container_name: assistml_dashboard
@@ -42,7 +46,9 @@ services:
     ports:
       - "8080:8050"
     volumes:
-      - "./frontend/python-modules/:/app/:ro"
+      - "./frontend/modules/:/app/modules/:ro"
+    env_file:
+      - frontend/dashboard-docker.env
 
 volumes:
   mongodb_data:

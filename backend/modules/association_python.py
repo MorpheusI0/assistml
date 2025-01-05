@@ -2,24 +2,23 @@
 @author: Dinesh Subhuraaj
 """
 
-import traceback
-import pymongo
 import glob
-import os
 import json
-from collections import OrderedDict 
+import os
 import sys
-import pandas as pd
-import math
+from collections import OrderedDict
 
+import pandas as pd
+from flask import current_app
 # Imports for mlxtend module
-from mlxtend.preprocessing import TransactionEncoder
-from mlxtend.frequent_patterns import fpgrowth
 from mlxtend.frequent_patterns import association_rules
+from mlxtend.frequent_patterns import fpgrowth
+from mlxtend.preprocessing import TransactionEncoder
+
 
 def main():
 
-    working_dir = "/app/working"
+    working_dir = os.path.expanduser(current_app.config['WORKING_DIR'])
     if not os.path.exists(working_dir):
         os.makedirs(working_dir)
 
@@ -28,7 +27,7 @@ def main():
         flag =0
         rule_found=1
         max_count = 0
-        fpgrowth_dir = "/app/output/FPGROWTH/"
+        fpgrowth_dir = os.path.join(working_dir, "FPGROWTH")
         if not os.path.exists(fpgrowth_dir):
             os.makedirs(fpgrowth_dir)
         for filename in glob.glob(os.path.join(fpgrowth_dir, '*.json')):
@@ -50,7 +49,7 @@ def main():
         
         
         #two sub dicts are stored in the super dict
-        print("Found " + str(no_of_rules_generated) + " rules !!")
+        current_app.logger.info("Found " + str(no_of_rules_generated) + " rules !!")
         dict_super=OrderedDict()
         dict_sub1=OrderedDict()
         dict_sub2=OrderedDict()
@@ -63,7 +62,7 @@ def main():
         dict_sub1["min_support"]= min_support
         # No rules found
         if(no_of_rules_generated==0):
-            print("No Rules Found!")
+            current_app.logger.info("No Rules Found!")
             dict_super["Rules"] = {}
             max_count=max_count+1
             outfile_name = "EXP_"+str(max_count)+".json"
@@ -113,7 +112,7 @@ def main():
      ####### End of function 'create_save_json_output' #######   
     
     # Database details
-    '''print("Connected to database")
+    '''current_app.logger.info("Connected to database")
     myclient = pymongo.MongoClient("mongodb://admin:admin@mongodb/")
     dbname = myclient["assistml"]
     collection_enriched = dbname["enriched_models"]
@@ -122,10 +121,10 @@ def main():
 
     #Select DataSet - Uncomment if needed in future
     '''
-    print("You want to apply association on individual or merged data?")
+    current_app.logger.info("You want to apply association on individual or merged data?")
     x=input("Enter number: 1. Merged, 2. Individual")
     if (x==2):
-        print("Presently kick, bank and Amazon food review dataset or merged data is available")
+        current_app.logger.info("Presently kick, bank and Amazon food review dataset or merged data is available")
         dataset = input("Enter Dataset Name ")
         Input_File="quantile_" + str(dataset) +"_selectedcols_binarized.arff"
     elif(x==1):
@@ -173,12 +172,12 @@ def main():
     # Find association rules
     if not (frequent_itemsets_fp.empty == True):
         rules_fp = association_rules(frequent_itemsets_fp, metric=rankedby, min_threshold=float(metric_min_score))
-        print(rules_fp)
+        current_app.logger.info(rules_fp)
         create_save_json_output(rules_fp,rankedby,metric_min_score,min_support,total_no_models)
     else:
         rules_fp = pd.DataFrame()
         create_save_json_output(rules_fp,rankedby,metric_min_score,min_support,total_no_models)
-        print("FPGrowth algorithm did not yield frequently occuring itemsets. Please retry with different column names")
+        current_app.logger.info("FPGrowth algorithm did not yield frequently occuring itemsets. Please retry with different column names")
     
     # Association rules using pyfpgrowth module
     '''

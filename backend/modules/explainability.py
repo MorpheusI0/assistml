@@ -1,35 +1,25 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import argparse
-import math
-import time
-import pandas as pd
+
 import numpy as np
-from sklearn.model_selection import train_test_split
-from sklearn import preprocessing
-from sklearn.model_selection import cross_val_score
-from sklearn.tree import DecisionTreeClassifier
-from sklearn.impute import SimpleImputer
-from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder
+import pandas as pd
+from flask import current_app
+from pymongo import MongoClient
 from sklearn.metrics import precision_recall_fscore_support, accuracy_score, confusion_matrix
-from sklearn.utils import resample
-import csv
-import pymongo
-import os
-import sys
 
 
 def main():
     import os
     #os.chdir("../")
-    app_dir = "/app"
-    data_base_path = os.path.join(app_dir, "1_data")
-    pickle_file_base_path = os.path.join(app_dir, "3_pickle")
-    json_file_base_path = os.path.join(app_dir, "3_pickle")
+    working_dir = os.path.expanduser(current_app.config['WORKING_DIR'])
+    if not os.path.exists(working_dir):
+        os.makedirs(working_dir)
+    data_base_path = os.path.join(working_dir, "1_data")
+    pickle_file_base_path = os.path.join(working_dir, "3_pickle")
+    json_file_base_path = os.path.join(working_dir, "3_pickle")
 
-    for path in [app_dir, data_base_path, pickle_file_base_path, json_file_base_path]:
+    for path in [working_dir, data_base_path, pickle_file_base_path, json_file_base_path]:
         if not os.path.exists(path):
             os.makedirs(path)
     #os.chdir(os.path.join(os.getcwd(), "2_code"))
@@ -42,7 +32,12 @@ def main():
     args = parser.parse_args()
     modelName = args.modelName
 
-    myclient = pymongo.MongoClient("mongodb://admin:admin@mongodb/")
+    myclient = MongoClient(
+        host=current_app.config['MONGO_HOST'],
+        port=int(current_app.config['MONGO_PORT']),
+        username=current_app.config['MONGO_USER'],
+        password=current_app.config['MONGO_PASS']
+    )
     dbname = myclient["assistml"]
     collectionname = dbname["base_models"]
     collection_datasets = dbname["datasets"]
@@ -57,17 +52,21 @@ def main():
 
 
     test_dataset_path = os.path.join(data_base_path, test_dataset)
-    df = pd.read_csv(test_dataset_path, na_values=missing_values, index_col=False)
+    try:
+        df = pd.read_csv(test_dataset_path, na_values=missing_values, index_col=False)
+    except FileNotFoundError:
+        current_app.logger.error(f"File {test_dataset_path} not found")
+        return  # TODO: handle not existing test files
     used_columns = model['Model']['Data_Meta_Data']['list_of_columns_used']
 
     class_variable = model['Model']['Data_Meta_Data']['class_variable']
     df.rename(columns={'0': class_variable}, inplace=True)
-    print(df.columns)
+    current_app.logger.info(df.columns)
     try:
         df.pop('Unnamed: 0')
     except:
         pass
-    print(df.columns)
+    current_app.logger.info(df.columns)
 
 
     y = df.pop(class_variable)
@@ -84,14 +83,18 @@ def main():
     filename = os.path.join(pickle_file_base_path, model['Model']['Info']['name'] + '.pkl')
     # with open(filename, 'wb') as file:
     #    joblib.dump(lr, file)
-    with open(filename, 'rb') as file:
-        dt_pkl = joblib.load(file)
+    try:
+        with open(filename, 'rb') as file:
+            dt_pkl = joblib.load(file)
+    except FileNotFoundError:
+        current_app.logger.error(f"Model {filename} not found")
+        return  # TODO: handle not existing pkl files
 
     y_pred = dt_pkl.predict(X)
     #y_pred = [0 if i == 1 else 1 for i in y_pred]
     accuracy = dt_pkl.score(X, y)
-    print("Accuracy:", accuracy)
-    print("Error:", 1 - accuracy)
+    current_app.logger.info("Accuracy:", accuracy)
+    current_app.logger.info("Error:", 1 - accuracy)
     metrics = {}
     prec_recall = precision_recall_fscore_support(y, y_pred, average=None)
     p, r, f, sp = prec_recall
@@ -111,10 +114,10 @@ def main():
     # metrics["test_time_per_unit"] = t2 / 11303
     # metrics["confusion_matrix_rowstrue_colspred"] = d
     # metrics["test_file"] = "steelplates_test_25.csv"
-    # print("Score= {}".format(s))
-    # print("Error= {}".format(1 - s))
-    # print("Precision,Recall,F_beta,Support {}".format(prec_recall))
-    # print(confusion_matrix(y, y_pred))
+    # current_app.logger.info("Score= {}".format(s))
+    # current_app.logger.info("Error= {}".format(1 - s))
+    # current_app.logger.info("Precision,Recall,F_beta,Support {}".format(prec_recall))
+    # current_app.logger.info(confusion_matrix(y, y_pred))
 
     num_columns = list(dataset['Features']['Numerical_Features'].keys())
     cat_columns = list(dataset['Features']['Categorical_Features'].keys())
@@ -129,15 +132,15 @@ def main():
 
     if samples > 100:
         samples = 100
-    print(c)
-    print(samples)
+    current_app.logger.info(c)
+    current_app.logger.info(samples)
     # samples = math.ceil(samples * 0.1)
     TP = []
     FP = []
     TN = []
     FN = []
-    print(set(y_pred))
-    print(list(y.unique()))
+    current_app.logger.info(set(y_pred))
+    current_app.logger.info(list(y.unique()))
     explainability = []
     for i in range(len(y_pred)):
         if y[i] == y_pred[i] == 1:
@@ -169,7 +172,7 @@ def main():
                 x.append('FN')
                 FN.append(x)
     cm = [TP, FP, TN, FN]
-    print(len(cm[3]))
+    current_app.logger.info(len(cm[3]))
     for i in range(4):
         for j in range(samples):
             explainability.append(cm[i][j])
@@ -300,7 +303,7 @@ def main():
     index = ['positives', 'negatives', 'total']
     new_explainability_out = pd.DataFrame(new_explainability, columns=new_columns, index=index)
 
-    print(new_explainability_out)
+    current_app.logger.info(new_explainability_out)
     model['Model']['Metrics']['Explainability'] = {}
     model['Model']['Metrics']['Explainability'] = new_explainability_out.to_dict()
     collectionname.delete_one({"_id": model["_id"]})
@@ -321,8 +324,6 @@ def main():
     #     csvWriter.writerows(TN)
     #     csvWriter.writerows(FP)
     #     csvWriter.writerows(FN)
-    import json
-    import os
 
     # if os.path.exists('/home/mohammoa/HiWi/asm-2/3_pickle/DTR_steelplates_001.json'):
     #    with open('/home/mohammoa/HiWi/asm-2/3_pickle/DTR_steelplates_001.json', 'r') as f:

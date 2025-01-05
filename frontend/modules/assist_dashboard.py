@@ -1,31 +1,22 @@
+import base64
+import glob
+import io
+import json
+import os
+import re
+
 import dash
 import dash_bootstrap_components as dbc
 import dash_core_components as dcc
-import dash_renderjson
 import dash_html_components as html
-from dash.dependencies import Input, Output, State
 import dash_table
-
-import pymongo
-
 import pandas as pd
-
-import base64
-import datetime
-import io
-import subprocess
-import json
-import time
-import requests
-import csv
-import re
-import os
-import glob
 import plotly.express as px
-
+import pymongo
+import requests
+from dash.dependencies import Input, Output, State
 
 from data_profiler import DataProfiler
-
 
 json_renderer_theme = {
     "scheme": "monokai",
@@ -51,7 +42,8 @@ json_renderer_theme = {
 numerical_features_keys = []
 response_json = {}
 categorical_features_keys = ['Name', 'Missing values percentage', 'Mutual info', 'Monotonous filtering']
-
+working_dir = os.path.expanduser(os.getenv('WORKING_DIR', "~/.assistml/dashboard"))
+os.makedirs(working_dir, exist_ok=True)
 
 def background_color(grade):
     color = 'White'
@@ -273,7 +265,12 @@ def plotting_response(acceptable_models, nearly_acceptable_models):
     accuracy = []
     acceptable_or_nearly = []
     models_names = []
-    client = pymongo.MongoClient("mongodb://admin:admin@mongodb/")
+    client = pymongo.MongoClient(
+        host=os.getenv('MONGO_HOST', 'localhost'),
+        port=int(os.getenv('MONGO_PORT', 27017)),
+        username=os.getenv('MONGO_USER', 'admin'),
+        password=os.getenv('MONGO_PASS', 'admin')
+    )
     db = client["assistml"]
     enriched_models = db["enriched_models"]
 
@@ -305,8 +302,9 @@ def plotting_response(acceptable_models, nearly_acceptable_models):
 
 
 def upload_dataset_R_backend(file_content):
-    url = "http://backend:8080/upload"
-    upload_dir = "/uploads/"
+    url = os.getenv('BACKEND_BASE_URL', 'http://localhost:8080') + "/upload"
+    upload_dir = os.path.join(working_dir, "uploads")
+    os.makedirs(upload_dir, exist_ok=True)
     csv_files = sorted(glob.glob(os.path.join(upload_dir,"*.csv")),key=os.path.getmtime)
     # csv_files.sort(key=os.path.getctime)
     file = csv_files[-1].split("/")[-1]
@@ -331,7 +329,7 @@ def api_call_R_backend(class_feature_type, feature_type_list, classification_out
     feature_type_list = feature_type_list.replace('"', '')
     feature_type_list = list(feature_type_list.strip('[]').split(','))
 
-    url = "http://backend:8080/assistml"
+    url = os.getenv('BACKEND_BASE_URL', 'http://localhost:8080') + "/assistml"
     params_json = {
         "classif_type": class_feature_type,
         "classif_output": classification_output,
@@ -351,11 +349,11 @@ def api_call_R_backend(class_feature_type, feature_type_list, classification_out
         # "dataset": "dataset.csv"
     }
     print(params_json)
-    response = requests.post(url=url, data=json.dumps(params_json))
+    response = requests.post(url=url, data=json.dumps(params_json), headers={'Content-Type': 'application/json'})
     print(response.text)
 
     if response.status_code == 200:
-        response_json = json.loads(response.json()[0])
+        response_json = response.json()
         print(response_json)
         try:
             acceptable_models = response_json["acceptable_models"]
@@ -585,7 +583,12 @@ header = html.Div([
 
 # Database details
 # same id as the api 192.168.221.146
-myclient = pymongo.MongoClient("mongodb://admin:admin@mongodb/")
+myclient = pymongo.MongoClient(
+            host=os.getenv('MONGO_HOST', 'localhost'),
+            port=int(os.getenv('MONGO_PORT', 27017)),
+            username=os.getenv('MONGO_USER', 'admin'),
+            password=os.getenv('MONGO_PASS', 'admin')
+        )
 dbname = myclient["assistml"]
 collection_datasets = dbname["datasets"]
 enriched_datasets = dbname["enriched_models"]
@@ -1194,7 +1197,7 @@ def update_usecase_dropdown(submit_btn_clicks):
 def update_output(list_of_contents, filename):
     content_type, content_string = list_of_contents.split(',')
     decoded = base64.b64decode(content_string)
-    upload_dir = "/uploads/"
+    upload_dir = os.path.join(working_dir, "uploads")
     os.makedirs(upload_dir, exist_ok=True)
     with open(os.path.join(upload_dir, filename), 'w') as csv_file:
         for line in str(decoded.decode('utf-8')).splitlines():

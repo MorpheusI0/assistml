@@ -1,3 +1,5 @@
+import os
+
 import pandas as pd
 import math
 from scipy import stats
@@ -598,7 +600,13 @@ class DataProfiler():
         # Connect to Database and write json data
         db_write_status = ''
         print("Connected to database")
-        myclient = pymongo.MongoClient("mongodb://admin:admin@mongodb/")
+        # mongo host from env var
+        myclient = pymongo.MongoClient(
+            host=os.getenv('MONGO_HOST', 'localhost'),
+            port=int(os.getenv('MONGO_PORT', 27017)),
+            username=os.getenv('MONGO_USER', 'admin'),
+            password=os.getenv('MONGO_PASS', 'admin')
+        )
         dbname = myclient["assistml"]
         self.collection_datasets = dbname["datasets"]
         data_already_in_db = self.check_data_availability_in_db(json.loads(self.json_data))
