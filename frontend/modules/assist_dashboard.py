@@ -1,4 +1,5 @@
 import base64
+import csv
 import glob
 import io
 import json
@@ -1206,7 +1207,10 @@ def update_output(list_of_contents, filename):
     try:
         if 'csv' in filename:
             # Assume that the user uploaded a CSV file
-            df = pd.read_csv(io.StringIO(decoded.decode('utf-8')))
+            decoded_content = decoded.decode('utf-8')
+            sniffer = csv.Sniffer()
+            dialect = sniffer.sniff(decoded_content.splitlines()[0])
+            df = pd.read_csv(io.StringIO(decoded_content), delimiter=str(dialect.delimiter))
             feature_list = df.columns
             options = [{'label': feature_name, 'value': feature_name} for feature_name in feature_list]
             error_code = upload_dataset_R_backend(decoded)
