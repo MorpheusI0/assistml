@@ -5,3 +5,4 @@ pandas
 scipy
 scikit-learn
 mlxtend==0.23.1
+liac-arff

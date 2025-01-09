@@ -1,4 +1,5 @@
 import os
+from enum import Enum
 
 import pandas as pd
 import math
@@ -15,12 +16,18 @@ import nltk
 from nltk.corpus import stopwords
 nltk.download('stopwords')
 nltk.download('punkt')
+nltk.download('punkt_tab')
 from nltk.tokenize import word_tokenize
 import collections
 import scipy
 from sklearn.feature_selection import f_classif, mutual_info_classif
 from functools import reduce
 
+
+class ReadMode(Enum):
+    READ_CSV_FROM_FILE = 1
+    READ_CSV_FROM_BASE64 = 2
+    READ_FROM_DATAFRAME = 3
 
 
 class DataProfiler():
@@ -29,19 +36,14 @@ class DataProfiler():
     ########################################## Function Definition ###########################################
     ##########################################################################################################
 
-    def __init__(self, mode, dataset_path, df, dataset_name, target_label, target_feature_type, use_case,
-                 feature_annotation_list):
-        self.mode = mode
-        self.dataset_path = dataset_path
-        self.df = df
+    def __init__(self, dataset_name, target_label, target_feature_type, use_case):
         self.dataset_name = dataset_name
         self.class_label = target_label
         self.target_feature_type = target_feature_type
         self.use_case = use_case
         self.nr_total_features = 0
-        self.feature_annotation_list = feature_annotation_list
-        self.csv_data = ''
-        self.csv_data_complete = ''
+        self.df = ''
+        self.df_complete = ''
         self.column_names_list = ''
         self.miss_value = ''
         self.drop_cols = ''
@@ -59,7 +61,7 @@ class DataProfiler():
         self.json_data["Info"]["target_feature_type"] = self.target_feature_type
 
     # Return a new dataset after dropping missing values. And return Number of missing values in each column.
-    def handle_missing_values(self, df):
+    def handle_missing_values(self, df: pd.DataFrame):
         print('size of df before dropping missing values: ' + str(len(df)))
         print("Number of missing values in each column:")
         miss_value = (df.isnull().sum())
@@ -299,35 +301,42 @@ class DataProfiler():
             return True
 
     # Read pandas dataframe and handle missing values
-    def process_pandas_df(self):
+    def process_pandas_df(self, mode: ReadMode, dataset_path=None, dataset_string=None, dataset_df=None):
         missing_values = ["n/a", "na", "--", "NA", "?"," ?", "", " ", "NAN", "NaN"]
-        if self.mode == 1:
-            self.csv_data = pd.read_csv(self.dataset_path + "/" + self.dataset_name, sep=",", na_values=missing_values)
-        elif self.mode == 2:
-            decoded = base64.b64decode(self.df)
-            self.csv_data = pd.read_csv(
+        if mode == ReadMode.READ_CSV_FROM_FILE:
+            self.df = pd.read_csv(dataset_path + "/" + self.dataset_name, sep=",", na_values=missing_values)
+        elif mode == ReadMode.READ_CSV_FROM_BASE64:
+            decoded = base64.b64decode(dataset_string)
+            self.df = pd.read_csv(
                 io.StringIO(decoded.decode('utf-8')), sep=",", na_values=missing_values)
-        self.column_names_list = list(self.csv_data.columns)
+        elif mode == ReadMode.READ_FROM_DATAFRAME:
+            if dataset_df is None:
+                return "processing failed"
+            self.df = dataset_df
+        self.column_names_list = list(self.df.columns)
+        print(self.df.dtypes)
 
-        self.csv_data_complete = pd.DataFrame()
-        self.csv_data_complete = pd.concat([self.csv_data_complete, self.csv_data], axis=1)
+        self.df_complete = pd.DataFrame()
+        self.df_complete = pd.concat([self.df_complete, self.df], axis=1)
 
         # Check if the target label provided by the user exists
         if not self.class_label in self.column_names_list:
             return "processing failed"
         # handle_missing_values
-        (self.csv_data, self.miss_value, self.drop_cols) = self.handle_missing_values(self.csv_data)
-        self.json_data["Info"]["observations"] = self.csv_data.shape[0]
-        self.nr_total_features = self.csv_data.shape[1] - 1  # Do not count class label
+        (self.df, self.miss_value, self.drop_cols) = self.handle_missing_values(self.df)
+        self.json_data["Info"]["observations"] = self.df.shape[0]
+        self.nr_total_features = self.df.shape[1] - 1  # Do not count class label
         self.json_data["Info"]["features"] = self.nr_total_features
         return ("processing success")
 
     # Identify indices of numerical, categorical features
-    def process_feature_annotation_list(self):
-        self.feature_annotation_list = self.feature_annotation_list.replace(' ', '')
-        self.feature_annotation_list = self.feature_annotation_list.replace("'", '')
-        self.feature_annotation_list = self.feature_annotation_list.replace('"', '')
-        feature_types_list = list(self.feature_annotation_list.strip('[]').split(','))
+    def process_feature_annotation_list(self, feature_annotations: str):
+        sanitized_feature_annotations = feature_annotations.replace(' ', '')
+        sanitized_feature_annotations = sanitized_feature_annotations.replace("'", '')
+        sanitized_feature_annotations = sanitized_feature_annotations.replace('"', '')
+        feature_types_list = list(sanitized_feature_annotations.strip('[]').split(','))
+        if not 'T' in feature_types_list:
+            return "processing failed: no feature annotated with class label 'T' in annotation list"
         # Identify indices of numerical and categorical features
         for i in range(0, len(feature_types_list)):
             if feature_types_list[i] == 'N':
@@ -372,15 +381,17 @@ class DataProfiler():
         feature = ""
         numericalFeatures = pd.DataFrame()
         for i in range(len(self.numerical_features)):
-            numericalFeatures = pd.concat([numericalFeatures, self.csv_data[self.csv_data_complete.columns[self.numerical_features[i]]]],
-                                         axis=1)
+            if self.df_complete.columns[self.numerical_features[i]] in self.df.columns:
+                numericalFeatures = pd.concat([numericalFeatures, self.df[self.df_complete.columns[self.numerical_features[i]]]],
+                                          axis=1)
         if not (len(numericalFeatures) == 0):
-            anova_f1 = f_classif(numericalFeatures, self.csv_data[self.class_label])[0]
-            anova_pvalue = f_classif(numericalFeatures, self.csv_data[self.class_label])[1]
+            anova_f1 = f_classif(numericalFeatures, self.df[self.class_label])[0]
+            anova_pvalue = f_classif(numericalFeatures, self.df[self.class_label])[1]
             if 'categoric' in self.target_feature_type or 'Categoric' in self.target_feature_type or 'binary' in self.target_feature_type or 'Binary' in self.target_feature_type or 'categorical' in self.target_feature_type or 'Categorical' in self.target_feature_type:
-                mi = mutual_info_classif(numericalFeatures, self.csv_data[self.class_label])
+                y = self.df[self.class_label]
+                mi = mutual_info_classif(numericalFeatures, self.df[self.class_label])
             else:
-                mi = mutual_info_classif(numericalFeatures, self.csv_data[self.class_label])
+                mi = mutual_info_classif(numericalFeatures, self.df[self.class_label])
         counter = 0
         try:
             for column_nr in self.numerical_features:
@@ -389,7 +400,7 @@ class DataProfiler():
                     self.json_data["Info"]["analyzed_features"].append(feature)
                     self.json_data["Features"]["Numerical_Features"][feature] = {}
                     # Implement the monotonous filtering
-                    self.json_data["Features"]["Numerical_Features"][feature]['monotonous_filtering'] = self.monotonous_filtering_numerical(self.csv_data, feature)
+                    self.json_data["Features"]["Numerical_Features"][feature]['monotonous_filtering'] = self.monotonous_filtering_numerical(self.df, feature)
                     # Assign the f1 value from the anova:
                     self.json_data["Features"]["Numerical_Features"][feature]['anova_f1'] = anova_f1[counter]
                     # Assign the p value from the anova:
@@ -402,9 +413,9 @@ class DataProfiler():
                         feature]
                     # Calculate min order and max order
                     self.json_data["Features"]["Numerical_Features"][feature]['min_orderm'] = self.min_orderm_cal(
-                        self.csv_data, feature)
+                        self.df, feature)
                     self.json_data["Features"]["Numerical_Features"][feature]['max_orderm'] = self.max_orderm_cal(
-                        self.csv_data, feature)
+                        self.df, feature)
                     # Calculate the correlation between selected feature and target feature.
                     #if 'numeric' in self.target_feature_type or 'Numeric' in self.target_feature_type:
                     #    self.json_data["Features"]["Numerical_Features"][feature]['correlation'] = self.corr_cal(self.csv_data, feature)
@@ -414,7 +425,7 @@ class DataProfiler():
                     #    self.json_data["Features"]["Numerical_Features"][feature]['Correlation']['chisq_correlated'] = chisq_correlated
                     #    self.json_data["Features"]["Numerical_Features"][feature]['Correlation']['p_val'] = pval
                     # Calculate IQR and Quartiles
-                    q0, q1, q2, q3, q4, iqr = self.iqr_cal(self.csv_data, feature)
+                    q0, q1, q2, q3, q4, iqr = self.iqr_cal(self.df, feature)
                     self.json_data["Features"]["Numerical_Features"][feature]['Quartiles'] = {}
                     self.json_data["Features"]["Numerical_Features"][feature]['Quartiles']['q0'] = q0
                     self.json_data["Features"]["Numerical_Features"][feature]['Quartiles']['q1'] = q1
@@ -423,18 +434,18 @@ class DataProfiler():
                     self.json_data["Features"]["Numerical_Features"][feature]['Quartiles']['q4'] = q4
                     self.json_data["Features"]["Numerical_Features"][feature]['Quartiles']['iqr'] = iqr
                     # Calculate outlier info
-                    outlier_list = self.detect_outlier(self.csv_data, feature)
+                    outlier_list = self.detect_outlier(self.df, feature)
                     self.json_data["Features"]["Numerical_Features"][feature]['Outliers'] = {}
                     self.json_data["Features"]["Numerical_Features"][feature]['Outliers']['number'] = len(outlier_list)
                     self.json_data["Features"]["Numerical_Features"][feature]['Outliers'][
                         'Actual_Values'] = outlier_list
                     # Distribution Check
                     self.json_data["Features"]["Numerical_Features"][feature]['Distribution'] = {}
-                    normal_distrn_bool = self.shapiro_test_normality(self.csv_data, feature)
+                    normal_distrn_bool = self.shapiro_test_normality(self.df, feature)
                     self.json_data["Features"]["Numerical_Features"][feature]['Distribution']['normal'] = normal_distrn_bool
-                    self.json_data["Features"]["Numerical_Features"][feature]['Distribution']['exponential'] = self.ks_test_exponential(self.csv_data, feature)
+                    self.json_data["Features"]["Numerical_Features"][feature]['Distribution']['exponential'] = self.ks_test_exponential(self.df, feature)
                     if normal_distrn_bool:
-                        self.json_data["Features"]["Numerical_Features"][feature]['Distribution']['skewness'] = stats.skew(self.csv_data[feature])
+                        self.json_data["Features"]["Numerical_Features"][feature]['Distribution']['skewness'] = stats.skew(self.df[feature])
                 else:
                     self.json_data["Info"]["discarded_features"].append(feature)
                     print(feature + " is dropped for having missing values more than 1/4 the whole size of the dataset")
@@ -445,17 +456,17 @@ class DataProfiler():
             return (feature)
 
     # Calculate parameters for categorical features and add it to json
-    def analyse_categorical_fatures(self):
+    def analyse_categorical_features(self):
         print("Analysing categorical features")
         # Calculate parameters for categorical features and add it to json
         self.json_data["Features"]["Categorical_Features"] = {}
         categorical_features = pd.DataFrame()
         for i in range(len(self.categorical_features)):
-            if self.csv_data_complete.columns[self.categorical_features[i]] in self.csv_data.columns:
-                self.csv_data[self.csv_data_complete.columns[self.categorical_features[i]]]= self.csv_data[self.csv_data_complete.columns[self.categorical_features[i]]].astype('category')
-                categorical_features = pd.concat([categorical_features, self.csv_data[self.csv_data_complete.columns[self.categorical_features[i]]].cat.codes],axis=1)
+            if self.df_complete.columns[self.categorical_features[i]] in self.df.columns:
+                self.df[self.df_complete.columns[self.categorical_features[i]]]= self.df[self.df_complete.columns[self.categorical_features[i]]].astype('category')
+                categorical_features = pd.concat([categorical_features, self.df[self.df_complete.columns[self.categorical_features[i]]].cat.codes], axis=1)
         if not (len(categorical_features) == 0):
-            mi = mutual_info_classif(categorical_features, self.csv_data[self.class_label])
+            mi = mutual_info_classif(categorical_features, self.df[self.class_label])
         counter = 0
         for column_nr in self.categorical_features:
             feature = self.column_names_list[column_nr]
@@ -465,7 +476,7 @@ class DataProfiler():
                 # Calculate missing values
                 self.json_data["Features"]["Categorical_Features"][feature]['missing_values'] = self.miss_value[feature]
                 # Identify levels
-                (index_list, val_list, num_levels) = self.freq_counts(self.csv_data, feature)
+                (index_list, val_list, num_levels) = self.freq_counts(self.df, feature)
                 levels = {}
                 # Mongodb does not accept key name with dots.
                 for i in range(len(val_list)):
@@ -475,7 +486,7 @@ class DataProfiler():
                 self.json_data["Features"]["Categorical_Features"][feature]['nr_levels'] = num_levels
                 self.json_data["Features"]["Categorical_Features"][feature]['Levels'] = levels
                 # Calculate imbalance
-                imbalance = self.imbalance_test(self.csv_data, feature)
+                imbalance = self.imbalance_test(self.df, feature)
                 self.json_data["Features"]["Categorical_Features"][feature]['imbalance'] = imbalance
                 # Assign the mutual information for the feature
                 self.json_data["Features"]["Categorical_Features"][feature]['mutual_info'] = mi[counter]
@@ -486,7 +497,7 @@ class DataProfiler():
                 #self.json_data["Features"]["Categorical_Features"][feature]['Correlation']['p_val'] = pval
                 #self.json_data["Features"]["Categorical_Features"][feature]['Correlation']['chisq_correlated'] = chisq_correlated
                 # Implement the monotonous filtering
-                self.json_data["Features"]["Categorical_Features"][feature]['monotonous_filtering'] = self.monotonous_filtering_categorical(self.csv_data, feature)
+                self.json_data["Features"]["Categorical_Features"][feature]['monotonous_filtering'] = self.monotonous_filtering_categorical(self.df, feature)
             else:
                 self.json_data["Info"]["discarded_features"].append(feature)
                 print(feature + " is dropped for having missing values more than 1/4 the whole size of the dataset")
@@ -502,7 +513,7 @@ class DataProfiler():
                 self.json_data["Features"]["Text_Features"][feature] = {}
                 # Calculate missing values
                 self.json_data["Features"]["Text_Features"][feature]['missing_values'] = self.miss_value[feature]
-                (vocab_size, relative_vocab, vocab_concentration, entropy, min_vocab, max_vocab) = self.text_statistics(self.csv_data, feature)
+                (vocab_size, relative_vocab, vocab_concentration, entropy, min_vocab, max_vocab) = self.text_statistics(self.df, feature)
                 self.json_data["Features"]["Text_Features"][feature]["vocab_size"] = vocab_size
                 self.json_data["Features"]["Text_Features"][feature]["relative_vocab"] = relative_vocab
                 self.json_data["Features"]["Text_Features"][feature]["vocab_concentration"] = vocab_concentration
@@ -570,7 +581,7 @@ class DataProfiler():
                 self.json_data["Features"]["Datetime_Features"][feature] = {}
                 # Calculate missing values
                 self.json_data["Features"]["Datetime_Features"][feature]['missing_values'] = self.miss_value[feature]
-                min_value, max_value, mean_value, median_value, daypart_frequencies, month_frequencies, weekday_frequencies, hour_frequencies = self.datetime_features_computations(self.csv_data, feature)
+                min_value, max_value, mean_value, median_value, daypart_frequencies, month_frequencies, weekday_frequencies, hour_frequencies = self.datetime_features_computations(self.df, feature)
                 self.json_data["Features"]["Datetime_Features"][feature]['min_delta'] = min_value
                 self.json_data["Features"]["Datetime_Features"][feature]['max_delta'] = max_value
                 self.json_data["Features"]["Datetime_Features"][feature]['mean_delta'] = mean_value
@@ -622,14 +633,14 @@ class DataProfiler():
         return self.json_data, db_write_status
 
     # Main function which invokes all the other functions
-    def analyse_dataset(self):
+    def analyse_dataset(self, mode: ReadMode, feature_annotation_list, dataset_path=None, dataset_string=None, dataset_df=None):
         print("Analysing Dataset")
         start = time.time()
-        processing_status = self.process_pandas_df()
+        processing_status = self.process_pandas_df(mode, dataset_path, dataset_string, dataset_df)
         if not "processing success" in processing_status:
             error_message = "Please recheck target class label"
             return {}, error_message
-        parse_feature_status = self.process_feature_annotation_list()
+        parse_feature_status = self.process_feature_annotation_list(feature_annotation_list)
         if not "parsing success" in parse_feature_status:
             print("Parsing Failed")
             error_message = "Please recheck feature type of the feature: " + parse_feature_status
@@ -640,7 +651,7 @@ class DataProfiler():
             print("Analysis Failed")
             error_message = "Please recheck feature type of the feature: " + analysis_status
             return {}, error_message
-        self.analyse_categorical_fatures()
+        self.analyse_categorical_features()
         self.analyse_text_features()
         self.analyse_datetime_features()
         stop = time.time()
@@ -662,12 +673,12 @@ class DataProfiler():
 if __name__ == '__main__':
     # Command line arguments
     mode = int(sys.argv[1])
-    df = ''
     dataset_path = ''
+    base64_string = ''
     if mode == 1:
         dataset_path = sys.argv[2]
     elif mode == 2:
-        df = sys.argv[2]
+        base64_string = sys.argv[2]
     else:
         print("Invalid argument for Mode. Please try again with valid input")
         print("Accepted values : 1 or 2")
@@ -682,6 +693,13 @@ if __name__ == '__main__':
     # print(use_case)
     feature_annotation_list = sys.argv[7]
     # print(feature_annotation_list)
-    data_profiler = DataProfiler(mode, dataset_path, df, dataset_name, target_label, target_feature_type, use_case,
-                                 feature_annotation_list)
-    data_profiler.analyse_dataset()
+    data_profiler = DataProfiler(mode, dataset_path, base64_string, dataset_name, target_label, target_feature_type, use_case)
+
+    if mode == ReadMode.READ_CSV_FROM_FILE:
+        data_profiler.analyse_dataset(mode, feature_annotation_list, dataset_path=dataset_path)
+    elif mode == ReadMode.READ_CSV_FROM_BASE64:
+        data_profiler.analyse_dataset(mode, feature_annotation_list, dataset_string=base64_string)
+    else:
+        print("Invalid argument for Mode. Please try again with valid input")
+        print("Accepted values : 1 or 2")
+        exit(1)

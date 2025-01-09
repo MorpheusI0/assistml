@@ -6,3 +6,4 @@ pandas
 scipy
 nltk
 scikit-learn
+liac-arff

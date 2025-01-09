@@ -27,6 +27,8 @@ services:
     build: ./backend/
     depends_on:
       - mongodb
+    ports:
+        - "8080:8080"
     volumes:
       - "./backend/modules/:/app/modules/:ro"
       - "./backend/assistml/:/app/assistml/:ro"
@@ -44,7 +46,7 @@ services:
       - backend
       - mongodb
     ports:
-      - "8080:8050"
+      - "8050:8050"
     volumes:
       - "./frontend/modules/:/app/modules/:ro"
     env_file:

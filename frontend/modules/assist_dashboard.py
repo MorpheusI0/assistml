@@ -3,21 +3,22 @@ import csv
 import glob
 import io
 import json
+import logging
 import os
 import re
+import traceback
 
+import arff
 import dash
 import dash_bootstrap_components as dbc
-import dash_core_components as dcc
-import dash_html_components as html
-import dash_table
+from dash import dcc, html, dash_table
 import pandas as pd
 import plotly.express as px
 import pymongo
 import requests
 from dash.dependencies import Input, Output, State
 
-from data_profiler import DataProfiler
+from data_profiler import DataProfiler, ReadMode
 
 json_renderer_theme = {
     "scheme": "monokai",
@@ -45,6 +46,9 @@ response_json = {}
 categorical_features_keys = ['Name', 'Missing values percentage', 'Mutual info', 'Monotonous filtering']
 working_dir = os.path.expanduser(os.getenv('WORKING_DIR', "~/.assistml/dashboard"))
 os.makedirs(working_dir, exist_ok=True)
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 def background_color(grade):
     color = 'White'
@@ -306,9 +310,11 @@ def upload_dataset_R_backend(file_content):
     url = os.getenv('BACKEND_BASE_URL', 'http://localhost:8080') + "/upload"
     upload_dir = os.path.join(working_dir, "uploads")
     os.makedirs(upload_dir, exist_ok=True)
-    csv_files = sorted(glob.glob(os.path.join(upload_dir,"*.csv")),key=os.path.getmtime)
+    csv_files = glob.glob(os.path.join(upload_dir, "*.csv"))
+    arff_files = glob.glob(os.path.join(upload_dir, "*.arff"))
+    all_files = sorted(csv_files + arff_files, key=os.path.getmtime)
     # csv_files.sort(key=os.path.getctime)
-    file = csv_files[-1].split("/")[-1]
+    file = all_files[-1].split("/")[-1]
     print(file)
     print("\n")
     with open(os.path.join(upload_dir, file), "r") as dataset_uploaded:
@@ -758,6 +764,7 @@ csv_upload = html.Div(
             # Allow multiple files to be uploaded
             multiple=False
         ),
+        dcc.Store(id='parsed-data'),
         dcc.Loading(
             id="upload_loading",
             type="default",
@@ -1192,38 +1199,91 @@ def update_usecase_dropdown(submit_btn_clicks):
 
 @app.callback(Output('output_data_upload', 'children'),
               Output('class_label', 'options'),
+              Output('parsed-data', 'data'),
+              Output('feature_type_list', 'value'),
               [Input('upload-data', 'contents')],
               [State('upload-data', 'filename')],
               prevent_initial_call=True)
-def update_output(list_of_contents, filename):
+def update_output(list_of_contents, filename: str):
     content_type, content_string = list_of_contents.split(',')
     decoded = base64.b64decode(content_string)
     upload_dir = os.path.join(working_dir, "uploads")
     os.makedirs(upload_dir, exist_ok=True)
+    logger.info(f"upload {filename}\n")
     with open(os.path.join(upload_dir, filename), 'w') as csv_file:
         for line in str(decoded.decode('utf-8')).splitlines():
             csv_file.write(line)
             csv_file.write('\n')
     try:
-        if 'csv' in filename:
+        decoded_content = decoded.decode('utf-8')
+        if filename.endswith('.csv'):
             # Assume that the user uploaded a CSV file
-            decoded_content = decoded.decode('utf-8')
             sniffer = csv.Sniffer()
             dialect = sniffer.sniff(decoded_content.splitlines()[0])
             df = pd.read_csv(io.StringIO(decoded_content), delimiter=str(dialect.delimiter))
             feature_list = df.columns
             options = [{'label': feature_name, 'value': feature_name} for feature_name in feature_list]
+
+            logger.info("dtypes before serialization:")
+            logger.info(df.dtypes)
+
             error_code = upload_dataset_R_backend(decoded)
+            serialized_df = {
+                'data': df.to_json(date_format='iso', orient='split'),
+                'dtypes': df.dtypes.astype(str).to_json(),
+            }
             # Use error code to print message accordingly
             if error_code == 200:
-                return filename + ' is uploaded successfully', options
+                return filename + ' is uploaded successfully', options, serialized_df, ''
             else:
-                return filename + ' is upload failed with error code ' + error_code, options
+                return filename + ' is upload failed with error code ' + error_code, options, serialized_df, ''
+
+        elif filename.endswith('.arff'):
+            # Assume that the user uploaded an .arff file
+
+            # scipy.io.arff does not support strings nor datetime types
+            # data, meta = scipy.io.arff.loadarff(io.StringIO(decoded_content))
+            data = arff.load(decoded_content)
+
+            df = pd.DataFrame(data['data'], columns=[x[0] for x in data['attributes']])
+            for feature_name, feature_type in data['attributes']:
+                if isinstance(feature_type, list):
+                    df[feature_name] = df[feature_name].astype("category")
+            feature_list = df.columns
+            options = [{'label': feature_name, 'value': feature_name} for feature_name in feature_list]
+
+            attributes = data['attributes']
+            feature_types = [
+                'C' if isinstance(feat_type, list) else
+                'N' if feat_type == "NUMERIC" else
+                'D' if feat_type == "DATE" else
+                'U' if feat_type == "STRING" else
+                'T'
+                for feat_name, feat_type in attributes
+            ]
+            feature_types = "[" + ",".join(feature_types) + "]"
+            logger.info(feature_types)
+
+            logger.info("dtypes before serialization:")
+            logger.info(df.dtypes)
+
+            error_code = upload_dataset_R_backend(decoded)
+            serialized_df = {
+                'data': df.to_json(date_format='iso', orient='split'),
+                'dtypes': df.dtypes.astype(str).to_json(),
+            }
+            # Use error code to print message accordingly
+            if error_code == 200:
+                return filename + ' is uploaded successfully', options, serialized_df, feature_types
+            else:
+                return filename + ' is upload failed with error code ' + error_code, options, serialized_df, ''
 
         else:
-            return 'Invalid input file. Try again by uploading csv file'
+            return 'Invalid input file. Try again by uploading csv or arff file'
     except Exception as e:
-        print(e)
+        logger.error(e)
+        # print stack trace
+        traceback.print_exc()
         return 'There was an error processing this file.'
 
 
@@ -1232,7 +1292,8 @@ def update_output(list_of_contents, filename):
     Output('result_section', 'children'),
     Output('api_call_response', 'children'),
     [
-        Input('submit_button', 'n_clicks')
+        Input('submit_button', 'n_clicks'),
+        Input('parsed-data', 'data'),
     ],
     [
         State('use_case', 'value'),
@@ -1257,19 +1318,18 @@ def update_output(list_of_contents, filename):
     ],
     prevent_initial_call=True
 )
-def trigger_data_profiler(submit_btn_clicks, use_case, user_use_case, csv_file_contents, class_label,
+def trigger_data_profiler(submit_btn_clicks, serialized_dataframe, use_case, user_use_case, csv_file_contents, class_label,
                           class_feature_type, feature_type_list, csv_filename,
                           classification_type, accuracy_slider, precision_slider, recall_slider, trtime_slider):
     # algorithm_family, deployment_type, platform, implementation_lang,language, tuning_slider,
-    mode = 2
     print(type(submit_btn_clicks))
-    content_type, content_string = str(csv_file_contents).split(',')
-    print(type(content_string))
     if "no selection" in use_case:
         use_case = user_use_case['props']['value']
-    data_profiler = DataProfiler(mode, '', content_string, csv_filename, class_label, class_feature_type, use_case,
-                                 str(feature_type_list))
-    json_output, db_write_status = data_profiler.analyse_dataset()
+    data_profiler = DataProfiler(csv_filename, class_label, class_feature_type, use_case)
+    mode = ReadMode.READ_FROM_DATAFRAME
+    df = pd.read_json(io.StringIO(serialized_dataframe['data']), orient='split')
+    df = df.astype(json.loads(serialized_dataframe['dtypes']))
+    json_output, db_write_status = data_profiler.analyse_dataset(mode, str(feature_type_list), dataset_df=df)
     if len(json_output) == 0:
         print("Error in execution of data_profiler.py")
         return db_write_status, "Feature suggestion not possible", ""

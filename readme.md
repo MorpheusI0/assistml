@@ -1,6 +1,6 @@
 # AssistML: An alternative to AutoML recommending ML Solutions
 
-> 15.12.2024
+> 09.01.2024
 
 <img src="./assistML.png"/>
 
@@ -24,7 +24,7 @@ The following steps need to be carried out to run the prototype of AssistML and 
 
 1. Clone the repository.
 2. Launch the docker compose configuration
-3. In a web browser go to http://localhost:8080
+3. In a web browser go to http://localhost:8050
 4. To reproduce evaluation setting q-steel-20, watch the video q-steel-20.mkv (see below). Other evaluation settings can be reproduced in a similar manner.
 
 ## Dockerized Version
@@ -49,7 +49,7 @@ This repository contains a dockerized version of the project.
     docker-compose up --build
     ```
 
-3. The application should now be running and accessible at `http://localhost:8080`.
+3. The application should now be running and accessible at `http://localhost:8050`.
 
 ### Docker Commands
 
