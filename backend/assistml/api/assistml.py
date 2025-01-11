@@ -164,7 +164,7 @@ def assistml():
 
     if verbose:
         current_app.logger.info(
-            f"Retrieved descriptive data features for new dataset : \ncols {data_feats['features']} and \nrows {data_feats['observations']}")
+            f"Retrieved descriptive data features for new dataset : \ncols {data_feats['features']} and \nrows {data_feats['analyzed_observations']} from originally {data_feats['observations']}")
 
     usecase_preferences = query_preferences(accuracy_range, precision_range, recall_range, trtime_range)
 

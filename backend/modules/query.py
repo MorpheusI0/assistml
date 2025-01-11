@@ -67,6 +67,7 @@ def query_data(semantic_types: list, dataset_name: str, use_case: str) -> dict:
     data_features = {
         "dataset_name": current_data["Info"]["dataset_name"],
         "features": current_data["Info"]["features"],
+        "analyzed_observations": current_data["Info"]["analyzed_observations"],
         "observations": current_data["Info"]["observations"],
         "numeric_ratio": current_data["Info"]["numeric_ratio"],
         "categorical_ratio": current_data["Info"]["categorical_ratio"],

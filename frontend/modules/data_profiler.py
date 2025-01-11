@@ -323,8 +323,9 @@ class DataProfiler():
         if not self.class_label in self.column_names_list:
             return "processing failed"
         # handle_missing_values
-        (self.df, self.miss_value, self.drop_cols) = self.handle_missing_values(self.df)
         self.json_data["Info"]["observations"] = self.df.shape[0]
+        (self.df, self.miss_value, self.drop_cols) = self.handle_missing_values(self.df)
+        self.json_data["Info"]["analyzed_observations"] = self.df.shape[0]
         self.nr_total_features = self.df.shape[1] - 1  # Do not count class label
         self.json_data["Info"]["features"] = self.nr_total_features
         return ("processing success")
