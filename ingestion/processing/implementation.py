@@ -76,7 +76,7 @@ class ImplementationProcessor:
                 return [Software(mlsea_uri=software_dto.mlsea_software_uri, **exception['transformed'])]
 
         requirements = software_dto.software_requirement.split(' ')
-        pattern = r"([\w\-_.]+)([<>=!]*)([\d.+-]*)"
+        pattern = r"([a-zA-Z\d]+)([_<>=!]*)([a-zA-Z\d.+-]*)"
 
         parsed_dependencies = []
         for requirement in requirements:
