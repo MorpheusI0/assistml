@@ -30,8 +30,8 @@ class TaskProcessor:
                 implementation_processor = ImplementationProcessor(self._mlsea)
                 await implementation_processor.process_all(task, recursive, head)
 
-                base_model_processor = ModelProcessor(self._mlsea)
-                await base_model_processor.process_all(task, recursive, head)
+                model_processor = ModelProcessor(self._mlsea)
+                await model_processor.process_all(task, recursive, head)
 
     @staticmethod
     async def _ensure_task_exists(task_dto: TaskDto, dataset: Dataset):

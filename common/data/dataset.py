@@ -79,10 +79,10 @@ class DatetimeFeature(BaseModel):
 
 
 class Features(BaseModel):
-    numerical_features: Dict[str, NumericalFeature] = Field(alias="Numerical_Features")
-    categorical_features: Dict[str, CategoricalFeature] = Field(alias="Categorical_Features")
-    unstructured_features: Dict[str, UnstructuredFeature] = Field(alias="Unstructured_Features")
-    datetime_features: Dict[str, DatetimeFeature] = Field(alias="Datetime_Features")
+    numerical_features: Optional[Dict[str, NumericalFeature]] = Field(alias="Numerical_Features", default=None)
+    categorical_features: Optional[Dict[str, CategoricalFeature]] = Field(alias="Categorical_Features", default=None)
+    unstructured_features: Optional[Dict[str, UnstructuredFeature]] = Field(alias="Unstructured_Features", default=None)
+    datetime_features: Optional[Dict[str, DatetimeFeature]] = Field(alias="Datetime_Features", default=None)
 
 
 class Dataset(Document):
@@ -92,6 +92,7 @@ class Dataset(Document):
 
     class Settings:
         name = "datasets"
+        keep_nulls = False
 
 #from .task import Task
 #Dataset.update_forward_refs()

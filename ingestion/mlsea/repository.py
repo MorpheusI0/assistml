@@ -90,7 +90,7 @@ class MLSeaRepository:
         Returns:
             pd.DataFrame: The DataFrame with the retrieved dependencies.
         """
-        return self._execute_query_with_retries(Query.RETRIEVE_DEPENDENCIES_FROM_OPENML_FOR_IMPLEMENTATION,
+        return self._execute_query_with_retries(Query.RETRIEVE_ALL_DEPENDENCIES_FROM_OPENML_FOR_IMPLEMENTATION,
                                                 implementationId=implementation_id)
 
     def retrieve_all_runs_from_openml_for_task(self, task_id: int):

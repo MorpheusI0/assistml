@@ -51,3 +51,4 @@ class Query(Document):
 
     class Settings:
         name = "queries"
+        keep_nulls = False

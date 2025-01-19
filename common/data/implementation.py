@@ -18,5 +18,9 @@ class Implementation(Document):
     dependencies: List[Software]
     task: BackLink[Task] = Field(original_field="implementation")
 
+    class Settings:
+        name = "implementations"
+        keep_nulls = False
+
 #from .task import Task
 #Implementation.update_forward_refs()

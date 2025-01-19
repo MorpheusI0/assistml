@@ -30,27 +30,9 @@ class ModelProcessor:
 
     @staticmethod
     async def _ensure_base_model_exists(run_dto: RunDto, task: Task):
-        model: Optional[Model] = await Model.find_one(Model.mlsea_uri == run_dto.mlsea_run_uri)
+        model: Optional[Model] = await Model.find_one(Model.base_model.info.mlsea_uri == run_dto.mlsea_run_uri)
 
         if model is not None:
             return model
 
-        model = Model(
-            base_model=BaseModel(
-                info=Info(
-                    title=run_dto.title,
-                    description=run_dto.description,
-                    mlsea_uri=run_dto.mlsea_run_uri
-                ),
-                metrics=Metrics(
-                    accuracy=run_dto.accuracy,
-                    f1_score=run_dto.f1_score,
-                    precision=run_dto.precision,
-                    recall=run_dto.recall
-                ),
-                training_characteristics=TrainingCharacteristics(
-                    training_time=run_dto.training_time,
-                    hyperparameters=run_dto.hyperparameters
-                )
-            ),
-            )
+        # TODO: Implement the creation of a new model

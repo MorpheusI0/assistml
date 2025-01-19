@@ -6,6 +6,7 @@ PREFIXES = """
     PREFIX prov:<http://www.w3.org/ns/prov#>
     PREFIX mls:<http://www.w3.org/ns/mls#>
     PREFIX mlso:<http://w3id.org/mlso/>
+    PREFIX sd:<https://w3id.org/okn/o/sd#>
     
     PREFIX mlsea_openml_dataset:<http://w3id.org/mlsea/openml/dataset/>
     PREFIX mlsea_openml_task:<http://w3id.org/mlsea/openml/task/>
@@ -146,7 +147,7 @@ RETRIEVE_ALL_IMPLEMENTATIONS_FROM_OPENML_FOR_TASK = Template("""
         ?i purl:identifier ?id .
         ?i purl:title ?i_title .
         ?i prov:atLocation ?i_url .
-    } ORDER BY
+    } ORDER BY ?id
     """)
 
 RETRIEVE_ALL_DEPENDENCIES_FROM_OPENML_FOR_IMPLEMENTATION = Template("""
@@ -161,7 +162,7 @@ RETRIEVE_ALL_DEPENDENCIES_FROM_OPENML_FOR_IMPLEMENTATION = Template("""
         ?i mls:hasPart ?s .
         ?s a sd:Software .
         ?s sd:softwareRequirements ?sr .
-    } ORDER BY
+    } ORDER BY ?s
     """)
 
 RETRIEVE_ALL_RUNS_FROM_OPENML_FOR_TASK = Template("""

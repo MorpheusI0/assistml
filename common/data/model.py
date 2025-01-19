@@ -71,6 +71,7 @@ class Metrics(pydantic.BaseModel):
 
 
 class Info(pydantic.BaseModel):
+    mlsea_uri: Optional[str] = None
     name: str
     spec_version: str
     use_case: str
@@ -114,3 +115,4 @@ class Model(Document):
 
     class Settings:
         name = "models"
+        keep_nulls = False

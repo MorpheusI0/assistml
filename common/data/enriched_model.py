@@ -44,3 +44,4 @@ class EnrichedModel(Document):
 
     class Settings:
         name = "enriched_models"
+        keep_nulls = False
