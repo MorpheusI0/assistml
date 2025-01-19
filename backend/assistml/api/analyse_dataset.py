@@ -75,8 +75,8 @@ async def _save_file_to_disk(file):
 
 async def _write_result_to_db(data_profile):
     if await _check_data_availability_in_db(data_profile):
-        status = (f"Information about the dataset {data_profile['Info']['dataset_name']} already available in the database. "
-                  f"Skipping insertion.")
+        status = (f"Information about the dataset {data_profile['Info']['dataset_name']} already available in the "
+                  f"database. Skipping insertion.")
     else:
         new_dataset = Dataset(**data_profile)
         await new_dataset.save()

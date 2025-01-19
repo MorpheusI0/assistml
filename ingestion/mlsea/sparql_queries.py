@@ -16,11 +16,11 @@ PREFIXES = """
 RETRIEVE_ALL_DATASETS_FROM_OPENML = Template("""
     $PREFIXES    
     SELECT
-        ?ds AS ?mlsea_dataset_uri
-        ?id AS ?openml_dataset_id
-        ?d_url AS ?openml_dataset_url
+        (?ds AS ?mlsea_dataset_uri)
+        (?id AS ?openml_dataset_id)
+        (?d_url AS ?openml_dataset_url)
         ?title
-        ?dtf_title AS ?default_target_feature_label
+        (?dtf_title AS ?default_target_feature_label)
     WHERE {
         ?ds a dcat:Dataset .
         FILTER CONTAINS(str(?ds), "openml") .
@@ -39,11 +39,11 @@ RETRIEVE_ALL_DATASETS_FROM_OPENML = Template("""
 RETRIEVE_DATASET_FROM_OPENML = Template("""
     $PREFIXES
     SELECT
-        ?ds AS ?mlsea_dataset_uri
-        ?id AS ?openml_dataset_id
-        ?d_url AS ?openml_dataset_url
+        (?ds AS ?mlsea_dataset_uri)
+        (?id AS ?openml_dataset_id)
+        (?d_url AS ?openml_dataset_url)
         ?title
-        ?dtf_title AS ?default_target_feature_label 
+        (?dtf_title AS ?default_target_feature_label) 
     WHERE {
         BIND(mlsea_openml_dataset:$datasetId AS ?ds)
 
@@ -64,11 +64,11 @@ RETRIEVE_DATASET_FROM_OPENML = Template("""
 RETRIEVE_DATASETS_FROM_OPENML = Template("""
     $PREFIXES
     SELECT
-        ?ds AS ?mlsea_dataset_uri
-        ?id AS ?openml_dataset_id
-        ?d_url AS ?openml_dataset_url
+        (?ds AS ?mlsea_dataset_uri)
+        (?id AS ?openml_dataset_id)
+        (?d_url AS ?openml_dataset_url)
         ?title
-        ?dtf_title AS ?default_target_feature_label 
+        (?dtf_title AS ?default_target_feature_label) 
     WHERE {
         VALUE ?ds { $datasetUris }
 
@@ -89,12 +89,12 @@ RETRIEVE_DATASETS_FROM_OPENML = Template("""
 RETRIEVE_ALL_TASKS_FROM_OPENML_FOR_DATASET = Template("""
     $PREFIXES
     SELECT 
-        ?t AS ?mlsea_task_uri
-        ?id AS ?openml_task_id
-        ?t_url AS ?openml_task_url
+        (?t AS ?mlsea_task_uri)
+        (?id AS ?openml_task_id)
+        (?t_url AS ?openml_task_url)
         ?title
-        ?tt AS ?task_type
-        ?ept AS ?evaluation_procedure_type
+        (?tt AS ?task_type)
+        (?ept AS ?evaluation_procedure_type)
     WHERE {
         BIND(mlsea_openml_dataset:$datasetId AS ?ds)
 
@@ -118,7 +118,7 @@ RETRIEVE_ALL_TASKS_FROM_OPENML_FOR_DATASET = Template("""
 RETRIEVE_ALL_EVALUATION_PROCEDURE_TYPES_FROM_OPENML_FOR_TASK = Template("""
     $PREFIXES
     SELECT
-        ?ept AS ?evaluation_procedure_type
+        (?ept AS ?evaluation_procedure_type)
     WHERE {
         BIND(mlsea_openml_task:$taskId AS ?t)
         ?t a mls:Task .
@@ -133,10 +133,10 @@ RETRIEVE_ALL_EVALUATION_PROCEDURE_TYPES_FROM_OPENML_FOR_TASK = Template("""
 RETRIEVE_ALL_IMPLEMENTATIONS_FROM_OPENML_FOR_TASK = Template("""
     $PREFIXES
     SELECT
-        ?i AS ?mlsea_implementation_uri
-        ?id AS ?openml_flow_id
-        ?i_url AS ?openml_flow_url
-        ?i_title AS ?implementation_title
+        (?i AS ?mlsea_implementation_uri)
+        (?id AS ?openml_flow_id)
+        (?i_url AS ?openml_flow_url)
+        (?i_title AS ?implementation_title)
     WHERE {
         BIND(mlsea_openml_task:$taskId AS ?t)
         ?t a mls:Task .
@@ -152,8 +152,8 @@ RETRIEVE_ALL_IMPLEMENTATIONS_FROM_OPENML_FOR_TASK = Template("""
 RETRIEVE_ALL_DEPENDENCIES_FROM_OPENML_FOR_IMPLEMENTATION = Template("""
     $PREFIXES
     SELECT
-        ?s AS ?mlsea_software_uri
-        ?sr AS ?software_requirement
+        (?s AS ?mlsea_software_uri)
+        (?sr AS ?software_requirement)
     WHERE {
         BIND(mlsea_openml_flow:$implementationId AS ?i)
         ?i a mls:Implementation .
@@ -167,9 +167,9 @@ RETRIEVE_ALL_DEPENDENCIES_FROM_OPENML_FOR_IMPLEMENTATION = Template("""
 RETRIEVE_ALL_RUNS_FROM_OPENML_FOR_TASK = Template("""
     $PREFIXES
     SELECT
-        ?r AS ?mlsea_run_uri
-        ?r_url AS ?openml_run_url
-        ?i AS ?mlsea_implementation_uri
+        (?r AS ?mlsea_run_uri)
+        (?r_url AS ?openml_run_url)
+        (?i AS ?mlsea_implementation_uri)
     WHERE {
         BIND(mlsea_openml_task:$taskId AS ?t)
 
@@ -187,8 +187,8 @@ RETRIEVE_ALL_RUNS_FROM_OPENML_FOR_TASK = Template("""
 RETRIEVE_ALL_METRICS_FROM_OPENML_FOR_RUN = Template("""
     $PREFIXES
     SELECT
-        ?emt AS ?measure_type
-        ?v AS ?value
+        (?emt AS ?measure_type)
+        (?v AS ?value)
     WHERE {
         BIND(mlsea_openml_run:$runId AS ?r)
 
@@ -205,7 +205,7 @@ RETRIEVE_ALL_METRICS_FROM_OPENML_FOR_RUN = Template("""
 RETRIEVE_ALL_SOFTWARE_REQUIREMENTS_FROM_OPENML_FOR_IMPLEMENTATION = Template("""
     $PREFIXES
     SELECT
-        ?sr AS ?software_requirement
+        (?sr AS ?software_requirement)
     WHERE {
         BIND(mlsea_openml_implementation:$implementationId AS ?r)
 
