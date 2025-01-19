@@ -1,5 +1,4 @@
 import csv
-import io
 import json
 import os
 
@@ -11,6 +10,8 @@ from werkzeug.datastructures import FileStorage
 from assistml.api import bp
 from common import DataProfiler
 from common.data_profiler import ReadMode
+from common.data import Dataset
+from common.data.projection import dataset as dataset_projection
 
 
 @bp.route('/analyse-dataset', methods=['POST'])
@@ -34,7 +35,7 @@ async def analyse_dataset():
         return jsonify({"error": "No selected file"}), 400
 
     if current_app.config["SAVE_UPLOADS"]:
-        _save_file_to_disk(file)
+        await _save_file_to_disk(file)
 
     try:
         df = await _load_file(file)
@@ -51,24 +52,52 @@ async def analyse_dataset():
     data_profiler = DataProfiler(file.filename, class_label, class_feature_type)
     mode = ReadMode.READ_FROM_DATAFRAME
 
-    json_result, db_write_status = data_profiler.analyse_dataset(mode, str(feature_type_list), dataset_df=df)
+    data_info = data_profiler.analyse_dataset(mode, str(feature_type_list), dataset_df=df)
+    db_write_status = await _write_result_to_db(data_info)
 
     return jsonify({
-        'data_profile': json.loads(json_result) if len(json_result) > 0 else None, 'response_api_call': None,
+        'data_profile': data_info if data_info else None,
         'db_write_status': db_write_status,
     })
 
 
-def _save_file_to_disk(file):
+async def _save_file_to_disk(file):
     current_app.logger.info(f"Saving file {file.filename} to disk")
     working_dir = os.path.expanduser(current_app.config["WORKING_DIR"])
     upload_dir = os.path.join(working_dir, "uploads")
     if not os.path.exists(upload_dir):
         os.makedirs(upload_dir)
     file_path = os.path.join(upload_dir, file.filename)
-    file.save(file_path)
+    await file.save(file_path)
     file.seek(0)
     current_app.logger.info(f"Just saved {file.filename} to {file_path}")
+
+
+async def _write_result_to_db(data_profile):
+    if await _check_data_availability_in_db(data_profile):
+        status = (f"Information about the dataset {data_profile['Info']['dataset_name']} already available in the database. "
+                  f"Skipping insertion.")
+    else:
+        new_dataset = Dataset(**data_profile)
+        await new_dataset.save()
+        status = f"Information about the dataset {data_profile['Info']['dataset_name']} written to the database."
+
+    current_app.logger.info(status)
+    return status
+
+
+async def _check_data_availability_in_db(data_profile):
+    similar_datasets = Dataset.find(
+        Dataset.info.dataset_name == data_profile['Info']['dataset_name'],
+        Dataset.info.observations == data_profile['Info']['observations'],
+        Dataset.info.features == data_profile['Info']['features'],
+        Dataset.info.numeric_ratio == data_profile['Info']['numeric_ratio'],
+        Dataset.info.categorical_ratio == data_profile['Info']['categorical_ratio'],
+        Dataset.info.datetime_ratio == data_profile['Info']['datetime_ratio'],
+        Dataset.info.unstructured_ratio == data_profile['Info']['unstructured_ratio'],
+    ).project(dataset_projection.EmptyView)
+
+    return await similar_datasets.exists()
 
 
 async def _load_file(file: FileStorage) -> pd.DataFrame:

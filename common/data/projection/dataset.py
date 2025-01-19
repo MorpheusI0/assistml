@@ -4,6 +4,13 @@ from pydantic import BaseModel, Field
 from common.data.dataset import Info, Features
 
 
+class EmptyView(BaseModel):
+    id: PydanticObjectId
+
+    class Settings:
+        projection = {"id": "$_id"}
+
+
 class InfoView(BaseModel):
     id: PydanticObjectId
     info: Info = Field(alias="Info")

@@ -1,12 +1,10 @@
-import os
+import json
 from enum import Enum
 
 import pandas as pd
 import math
 from scipy import stats
-import json
 import numpy as np
-import pymongo
 import datetime
 import sys
 import base64
@@ -272,7 +270,8 @@ class DataProfiler():
             return True
 
     # Converts numpy datatypes into python default datatypes
-    def datatype_converter(self, obj):
+    @staticmethod
+    def datatype_converter(obj):
         if isinstance(obj, np.integer):
             return int(obj)
         elif isinstance(obj, np.floating):
@@ -282,20 +281,6 @@ class DataProfiler():
         elif isinstance(obj, datetime.datetime):
             return obj.__str__()
 
-    # Check if information about this dataset is already available in DB and return status in boolean.
-    def check_data_availability_in_db(self, dataset_info_json):
-        similar_document = self.collection_datasets.find(
-            {'Info.dataset_name': dataset_info_json["Info"]['dataset_name'],
-             'Info.features': dataset_info_json["Info"]['features'],
-             'Info.numeric_ratio': dataset_info_json["Info"]['numeric_ratio'],
-             'Info.categorical_ratio': dataset_info_json["Info"]['categorical_ratio'],
-             'Info.datetime_ratio': dataset_info_json["Info"]['datetime_ratio'],
-             'Info.unstructured_ratio': dataset_info_json["Info"]['unstructured_ratio']}
-            , {"_id": 0})
-        if len(list(similar_document)) == 0:
-            return False
-        else:
-            return True
 
     # Read pandas dataframe and handle missing values
     def process_pandas_df(self, mode: ReadMode, dataset_path=None, dataset_string=None, dataset_df=None):
@@ -601,34 +586,9 @@ class DataProfiler():
                 self.json_data["Info"]["discarded_features"].append(feature)
                 print(feature + " is dropped for having missing values more than 1/4 the whole size of the dataset")
 
-
-
-
-    # Write result to MongoDB
-    def write_result_to_DB(self):
-        # Connect to Database and write json data
-        db_write_status = ''
-        print("Connected to database")
-        # mongo host from env var
-        myclient = pymongo.MongoClient(
-            host=os.getenv('MONGO_HOST', 'localhost'),
-            port=int(os.getenv('MONGO_PORT', 27017)),
-            username=os.getenv('MONGO_USER', 'admin'),
-            password=os.getenv('MONGO_PASS', 'admin')
-        )
-        dbname = myclient["assistml"]
-        self.collection_datasets = dbname["datasets"]
-        data_already_in_db = self.check_data_availability_in_db(json.loads(self.json_data))
-        if data_already_in_db:
-            print("Information about this dataset is already available in DB. Skipping insertion.")
-            db_write_status = 'Information about this dataset is already available in Database. Insertion skipped'
-        else:
-            mylist = []
-            mylist.append(json.loads(self.json_data))
-            self.collection_datasets.insert_many(mylist)
-            db_write_status = 'Data written succcessfully to Database'
-            print("Data written succcessfully to MongoDB")
-        return self.json_data, db_write_status
+    @staticmethod
+    def _convert_numpy_datatypes(json_data):
+        return json.loads(json.dumps(json_data, default=DataProfiler.datatype_converter))
 
     # Main function which invokes all the other functions
     def analyse_dataset(self, mode: ReadMode, feature_annotation_list, dataset_path=None, dataset_string=None, dataset_df=None):
@@ -657,15 +617,8 @@ class DataProfiler():
         print(analysis_time)
         self.json_data["Info"]["analysis_time"] = analysis_time
         #print(self.json_data["Info"]["analysis_time"])
-        self.json_data = json.dumps(self.json_data, indent=4, default=self.datatype_converter)
-        json_output, db_write_status = self.write_result_to_DB()
-        return json_output, db_write_status
 
-    # Write json data to a file in local directory
-    '''with open(filename, 'w') as f:
-        json_data = json.dumps(json_data,indent=4, default=datatype_converter)
-        print(json_data)
-        f.write(json_data)'''
+        return DataProfiler._convert_numpy_datatypes(self.json_data)
 
 
 if __name__ == '__main__':

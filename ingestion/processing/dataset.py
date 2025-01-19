@@ -1,4 +1,3 @@
-import json
 from typing import List, Optional
 
 import pandas as pd
@@ -68,9 +67,9 @@ class DatasetProcessor:
             target_label=default_target_feature_label,
             target_feature_type=target_feature_type
         )
-        result, _ = data_profiler.analyse_dataset(ReadMode.READ_FROM_DATAFRAME, feature_annotations_string,
+        data_info = data_profiler.analyse_dataset(ReadMode.READ_FROM_DATAFRAME, feature_annotations_string,
                                                   dataset_df=df)
-        return json.loads(result)
+        return data_info
 
     @staticmethod
     def _recognize_classification_output_type(df: pd.DataFrame, target_feature: str):
