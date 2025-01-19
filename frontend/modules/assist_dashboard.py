@@ -306,25 +306,6 @@ def plotting_response(acceptable_models, nearly_acceptable_models):
     return dcc.Graph(id='response_plot', figure=fig)
 
 
-def call_backend_api_upload_dataset(file_content):
-    url = os.getenv('BACKEND_BASE_URL', 'http://localhost:8080') + "/upload"
-    upload_dir = os.path.join(working_dir, "uploads")
-    os.makedirs(upload_dir, exist_ok=True)
-    csv_files = glob.glob(os.path.join(upload_dir, "*.csv"))
-    arff_files = glob.glob(os.path.join(upload_dir, "*.arff"))
-    all_files = sorted(csv_files + arff_files, key=os.path.getmtime)
-    # csv_files.sort(key=os.path.getctime)
-    file = all_files[-1].split("/")[-1]
-    print(file)
-    print("\n")
-    with open(os.path.join(upload_dir, file), "r") as dataset_uploaded:
-        file_dict = {str(file): dataset_uploaded}
-        print(file_dict)
-        response = requests.post(url, files=file_dict)
-        print(response.text)
-        return response.status_code
-
-
 def call_backend_api_analyse_dataset(class_label: str, class_feature_type: str, feature_type_list: str):
     url = os.getenv('BACKEND_BASE_URL', 'http://localhost:8080') + "/analyse-dataset"
     upload_dir = os.path.join(working_dir, "uploads")  # TODO: skip saving file on disk
@@ -1193,16 +1174,11 @@ def update_output(list_of_contents, filename: str):
             logger.info("dtypes before serialization:")
             logger.info(df.dtypes)
 
-            error_code = call_backend_api_upload_dataset(decoded)
             serialized_df = {
                 'data': df.to_json(date_format='iso', orient='split'),
                 'dtypes': df.dtypes.astype(str).to_json(),
             }
-            # Use error code to print message accordingly
-            if error_code == 200:
-                return filename + ' is uploaded successfully', options, serialized_df, ''
-            else:
-                return filename + ' is upload failed with error code ' + error_code, options, serialized_df, ''
+            return filename + ' was loaded successfully', options, serialized_df, ''
 
         elif filename.endswith('.arff'):
             # Assume that the user uploaded an .arff file
@@ -1233,16 +1209,11 @@ def update_output(list_of_contents, filename: str):
             logger.info("dtypes before serialization:")
             logger.info(df.dtypes)
 
-            error_code = call_backend_api_upload_dataset(decoded)
             serialized_df = {
                 'data': df.to_json(date_format='iso', orient='split'),
                 'dtypes': df.dtypes.astype(str).to_json(),
             }
-            # Use error code to print message accordingly
-            if error_code == 200:
-                return filename + ' is uploaded successfully', options, serialized_df, feature_types
-            else:
-                return filename + ' is upload failed with error code ' + error_code, options, serialized_df, ''
+            return filename + ' was loaded successfully', options, serialized_df, feature_types
 
         else:
             return 'Invalid input file. Try again by uploading csv or arff file'
