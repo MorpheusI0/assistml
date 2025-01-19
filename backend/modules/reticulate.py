@@ -4,7 +4,7 @@ import sys
 import time
 from typing import List, Dict, Union
 
-from flask import current_app
+from quart import current_app
 from pymongo import MongoClient
 
 from modules import data_encoder, association_python, analysis

@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-from flask import current_app
+from quart import current_app
 from sklearn.cluster import DBSCAN
 from typing import List, Dict, Union
 

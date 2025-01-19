@@ -4,7 +4,7 @@ import argparse
 
 import numpy as np
 import pandas as pd
-from flask import current_app
+from quart import current_app
 from pymongo import MongoClient
 from sklearn.metrics import precision_recall_fscore_support, accuracy_score, confusion_matrix
 

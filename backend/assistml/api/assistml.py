@@ -2,9 +2,9 @@ import json
 import os
 from typing import Dict
 
-from flask import request, jsonify, current_app
+from quart import request, jsonify, current_app
 from pymongo import MongoClient
-from assistml.api import assistml_bp as bp
+from assistml.api import bp
 from modules.cluster import cluster_models
 from modules.query import query_usecase, query_data, query_preferences
 import time
@@ -16,11 +16,11 @@ from modules.select import choose_models
 
 
 @bp.route('/assistml', methods=['POST'])
-def assistml():
+async def assistml():
     """
         ---
         post:
-          summary: AssistML analysis for new usecase/data
+          summary: AssistML analysis for new data
           description: Recommends ML models for a given query based on a base of known trained models.
           parameters:
             - in: body
@@ -58,9 +58,6 @@ def assistml():
                   dataset_name:
                     type: string
                     description: CSV file of the new use case with sample data to analyze
-                  usecase:
-                    type: string
-                    description: Name of the new use case for which the query is issued
                   deployment:
                     type: string
                     description: String to say if the MLS should be deployed in a single host or cluster
@@ -85,7 +82,7 @@ def assistml():
               schema:
                 type: object
         """
-    data = request.get_json()
+    data = await request.get_json()
 
     classif_type = data.get('classif_type')
     classif_output = data.get('classif_output')
@@ -95,7 +92,6 @@ def assistml():
     recall_range = data.get('recall_range')
     trtime_range = data.get('trtime_range')
     dataset_name = data.get('dataset_name')
-    usecase = data.get('usecase')
     deployment = data.get('deployment')
     lang = data.get('lang')
     algofam = data.get('algofam')
@@ -113,14 +109,9 @@ def assistml():
         username=current_app.config['MONGO_USER'],
         password=current_app.config['MONGO_PASS']
     )
-    base_models_collection = client["assistml"]["base_models"]
-    enriched_models_collection = client["assistml"]["enriched_models"]
     queries_collection = client["assistml"]["queries"]
 
-    defaults = base_models_collection.find({}, {"Model.Training_Characteristics.Dependencies.Platforms":1, "Model.Training_Characteristics.Dependencies.Libraries":1, "Model.Training_Characteristics.Hyper_Parameters.nr_hyperparams":1, "Model.Training_Characteristics.implementation":1})
 
-    current_app.logger.info("Connecting to mongo to get enriched models")
-    more_defaults = enriched_models_collection.find({})
 
     current_app.logger.info(" ")
 
@@ -160,7 +151,7 @@ def assistml():
 
     usecase_info = query_usecase(classif_type, classif_output)
 
-    data_feats = query_data(semantic_types=sem_types, dataset_name=dataset_name, use_case=usecase)
+    data_feats = await query_data(semantic_types=sem_types, dataset_name=dataset_name)
 
     if verbose:
         current_app.logger.info(
@@ -175,7 +166,7 @@ def assistml():
     current_app.logger.info(" ")
     current_app.logger.info("#### SELECT FUNCTIONS ####")
 
-    usecase_models, similarity_level = choose_models(task_type=usecase_info['tasktype'], output_type=usecase_info['output'],
+    usecase_models, similarity_level = await choose_models(task_type=usecase_info['tasktype'], output_type=usecase_info['output'],
                                    data_features=data_feats)
 
     if similarity_level is None:

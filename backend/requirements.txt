@@ -1,8 +1,12 @@
-Flask==3.1.0
-python-dotenv~=1.0.1
+quart
+hypercorn
 pymongo
 pandas
 scipy
+nltk
 scikit-learn
 mlxtend==0.23.1
 liac-arff
+beanie
+pydantic
+python-dotenv

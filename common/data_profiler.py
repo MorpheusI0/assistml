@@ -36,11 +36,10 @@ class DataProfiler():
     ########################################## Function Definition ###########################################
     ##########################################################################################################
 
-    def __init__(self, dataset_name, target_label, target_feature_type, use_case):
+    def __init__(self, dataset_name, target_label, target_feature_type):
         self.dataset_name = dataset_name
         self.class_label = target_label
         self.target_feature_type = target_feature_type
-        self.use_case = use_case
         self.nr_total_features = 0
         self.df = ''
         self.df_complete = ''
@@ -56,7 +55,6 @@ class DataProfiler():
         self.json_data["Info"] = {}
         self.json_data["Features"] = {}
         self.json_data["Info"]["dataset_name"] = self.dataset_name
-        self.json_data["Info"]["use_case"] = use_case
         self.json_data["Info"]["target_label"] = self.class_label
         self.json_data["Info"]["target_feature_type"] = self.target_feature_type
 
@@ -288,7 +286,6 @@ class DataProfiler():
     def check_data_availability_in_db(self, dataset_info_json):
         similar_document = self.collection_datasets.find(
             {'Info.dataset_name': dataset_info_json["Info"]['dataset_name'],
-             'Info.use_case': dataset_info_json["Info"]['use_case'],
              'Info.features': dataset_info_json["Info"]['features'],
              'Info.numeric_ratio': dataset_info_json["Info"]['numeric_ratio'],
              'Info.categorical_ratio': dataset_info_json["Info"]['categorical_ratio'],
@@ -390,9 +387,9 @@ class DataProfiler():
             anova_pvalue = f_classif(numericalFeatures, self.df[self.class_label])[1]
             if 'categoric' in self.target_feature_type or 'Categoric' in self.target_feature_type or 'binary' in self.target_feature_type or 'Binary' in self.target_feature_type or 'categorical' in self.target_feature_type or 'Categorical' in self.target_feature_type:
                 y = self.df[self.class_label]
-                mi = mutual_info_classif(numericalFeatures, self.df[self.class_label])
+                mi = mutual_info_classif(numericalFeatures, self.df[self.class_label], random_state=42)
             else:
-                mi = mutual_info_classif(numericalFeatures, self.df[self.class_label])
+                mi = mutual_info_classif(numericalFeatures, self.df[self.class_label], random_state=42)
         counter = 0
         try:
             for column_nr in self.numerical_features:
@@ -689,12 +686,9 @@ if __name__ == '__main__':
     target_label = sys.argv[4]
     # print(target_label)
     target_feature_type = sys.argv[5]
-    # print(target_feature_type)
-    use_case = sys.argv[6]
-    # print(use_case)
-    feature_annotation_list = sys.argv[7]
+    feature_annotation_list = sys.argv[6]
     # print(feature_annotation_list)
-    data_profiler = DataProfiler(mode, dataset_path, base64_string, dataset_name, target_label, target_feature_type, use_case)
+    data_profiler = DataProfiler(dataset_name, target_label, target_feature_type)
 
     if mode == ReadMode.READ_CSV_FROM_FILE:
         data_profiler.analyse_dataset(mode, feature_annotation_list, dataset_path=dataset_path)

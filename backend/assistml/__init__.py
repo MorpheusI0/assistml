@@ -1,14 +1,23 @@
-from flask import Flask, jsonify
+import asyncio
+
+from quart import Quart, jsonify
 from config import Config
+from common.data import ObjectDocumentMapper
 
 
 def create_app(config_class=Config):
-    app = Flask(__name__)
+    app = Quart(__name__)
+    odm = ObjectDocumentMapper()
     app.config.from_object(config_class)
 
-    from assistml.api import assistml_bp, upload_bp
-    app.register_blueprint(assistml_bp)
-    app.register_blueprint(upload_bp)
+    @app.before_serving
+    async def connect_db():
+        await odm.connect()
+
+    #asyncio.run(async_init())
+
+    from assistml.api import bp
+    app.register_blueprint(bp)
 
     @app.route('/<path:any_other_path>', methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH'])
     def block_other_paths(any_other_path):

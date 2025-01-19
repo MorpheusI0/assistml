@@ -3,17 +3,17 @@ import os
 
 import arff
 import pandas as pd
-from flask import request, jsonify, current_app
+from quart import request, jsonify, current_app
 
-from assistml.api import upload_bp as bp
+from assistml.api import bp
 
 
 @bp.route('/upload', methods=['POST'])
-def upload_data():
+async def upload_data():
     """
     Route to upload data of CSV files to the server.
     """
-    files = request.files.to_dict()
+    files = await request.files
     if len(files.keys()) == 0:
         return jsonify({"error": "No file part"}), 400
 
@@ -33,7 +33,7 @@ def upload_data():
             os.makedirs(upload_dir)
         file_path = os.path.join(upload_dir, file.filename)
 
-        file.save(file_path)
+        await file.save(file_path)
         file.close()
         current_app.logger.info(f"Just uploaded {file.filename}")
         if file.filename.endswith(".csv"):

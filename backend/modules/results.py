@@ -1,7 +1,7 @@
 import pandas as pd
 from typing import Dict, List, Any, Union
 
-from flask import current_app
+from quart import current_app
 from pymongo import MongoClient
 
 from modules.distance import retrieve_settings

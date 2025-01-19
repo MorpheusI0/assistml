@@ -2,7 +2,7 @@ import os
 import sys
 import pandas as pd
 import pymongo
-from flask import current_app
+from quart import current_app
 
 
 def process_cmd_arg(cmd_argument, available_elements_db):

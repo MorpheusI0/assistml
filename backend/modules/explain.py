@@ -1,7 +1,7 @@
 import sys
 from typing import Dict, Any
 
-from flask import current_app
+from quart import current_app
 from pymongo import MongoClient
 
 from modules import explainability

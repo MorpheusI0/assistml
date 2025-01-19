@@ -1,7 +1,8 @@
 import os
 
-from flask import current_app, json
-from pymongo import MongoClient
+from quart import current_app, json
+
+from common.data import Dataset
 
 
 def query_usecase(classif_type: str, classif_output: str) -> dict:
@@ -32,13 +33,12 @@ def query_usecase(classif_type: str, classif_output: str) -> dict:
     return usecase
 
 
-def query_data(semantic_types: list, dataset_name: str, use_case: str) -> dict:
+async def query_data(semantic_types: list, dataset_name: str) -> dict:
     """
     Generates a summary of all metadata and also gives details of each feature according to four semantic types: numeric, categorical, datetime or unstructured text.
 
     :param semantic_types: List with annotations of each feature semantic type (N, C, D, U, T).
     :param dataset_name: String identifying the dataset name.
-    :param use_case: String identifying the use case (to be used with Mongo repository).
     :return: Dictionary describing all data features based on semantic types.
     """
 
@@ -48,44 +48,35 @@ def query_data(semantic_types: list, dataset_name: str, use_case: str) -> dict:
         current_app.logger.info("Inside query_data()")
         current_app.logger.info("semantic_types: " + str(semantic_types))
         current_app.logger.info("dataset_name: " + dataset_name)
-        current_app.logger.info("use_case: " + use_case)
         current_app.logger.info(" ")
 
-    client = MongoClient(
-        host=current_app.config['MONGO_HOST'],
-        port=int(current_app.config['MONGO_PORT']),
-        username=current_app.config['MONGO_USER'],
-        password=current_app.config['MONGO_PASS']
-    )
-    db = client["assistml"]
-    collection = db["datasets"]
+    current_dataset: Dataset = await Dataset.find_one(Dataset.info.dataset_name == dataset_name)  # TODO: use another identifier than name
 
-    query = {"Info.use_case": use_case, "Info.dataset_name": dataset_name}
-    projection = {"_id": 0}
-    current_data = collection.find_one(query, projection)
+    if current_dataset is None:
+        raise ValueError("Error: Dataset not found.")
 
     data_features = {
-        "dataset_name": current_data["Info"]["dataset_name"],
-        "features": current_data["Info"]["features"],
-        "analyzed_observations": current_data["Info"]["analyzed_observations"],
-        "observations": current_data["Info"]["observations"],
-        "numeric_ratio": current_data["Info"]["numeric_ratio"],
-        "categorical_ratio": current_data["Info"]["categorical_ratio"],
-        "datetime_ratio": current_data["Info"]["datetime_ratio"],
-        "unstructured_ratio": current_data["Info"]["unstructured_ratio"]
+        "dataset_name": current_dataset.info.dataset_name,
+        "features": current_dataset.info.features,
+        "analyzed_observations": current_dataset.info.analyzed_observations,
+        "observations": current_dataset.info.observations,
+        "numeric_ratio": current_dataset.info.numeric_ratio,
+        "categorical_ratio": current_dataset.info.categorical_ratio,
+        "datetime_ratio": current_dataset.info.datetime_ratio,
+        "unstructured_ratio": current_dataset.info.unstructured_ratio
     }
 
-    if "Numerical_Features" in current_data["Features"]:
-        data_features["numerical_features"] = current_data["Features"]["Numerical_Features"]
+    if "Numerical_Features" in current_dataset.features:
+        data_features["numerical_features"] = current_dataset.features.numerical_features
 
-    if "Categorical_Features" in current_data["Features"]:
-        data_features["categorical_features"] = current_data["Features"]["Categorical_Features"]
+    if "Categorical_Features" in current_dataset.features:
+        data_features["categorical_features"] = current_dataset.features.categorical_features
 
-    if "Datetime_Features" in current_data["Features"]:
-        data_features["datetime_features"] = current_data["Features"]["Datetime_Features"]
+    if "Datetime_Features" in current_dataset.features:
+        data_features["datetime_features"] = current_dataset.features.datetime_features
 
-    if "Unstructured_Features" in current_data["Features"]:
-        data_features["unstructured_features"] = current_data["Features"]["Unstructured_Features"]
+    if "Unstructured_Features" in current_dataset.features:
+        data_features["unstructured_features"] = current_dataset.features.unstructured_features
 
     working_dir = os.path.expanduser(current_app.config['WORKING_DIR'])
     if not os.path.exists(working_dir):

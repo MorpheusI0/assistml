@@ -9,7 +9,7 @@ import sys
 from collections import OrderedDict
 
 import pandas as pd
-from flask import current_app
+from quart import current_app
 # Imports for mlxtend module
 from mlxtend.frequent_patterns import association_rules
 from mlxtend.frequent_patterns import fpgrowth

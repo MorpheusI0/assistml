@@ -1,7 +1,7 @@
 import pandas as pd
 from typing import List, Dict
 
-from flask import current_app
+from quart import current_app
 from pymongo import MongoClient
 
 

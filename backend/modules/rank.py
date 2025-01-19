@@ -2,7 +2,7 @@ import os
 from typing import List, Dict, Union
 
 import pandas as pd
-from flask import current_app
+from quart import current_app
 from pymongo import MongoClient
 
 

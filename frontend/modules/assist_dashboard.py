@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import re
+import sys
 import traceback
 
 import arff
@@ -18,7 +19,6 @@ import pymongo
 import requests
 from dash.dependencies import Input, Output, State
 
-from data_profiler import DataProfiler, ReadMode
 
 json_renderer_theme = {
     "scheme": "monokai",
@@ -306,7 +306,7 @@ def plotting_response(acceptable_models, nearly_acceptable_models):
     return dcc.Graph(id='response_plot', figure=fig)
 
 
-def upload_dataset_R_backend(file_content):
+def call_backend_api_upload_dataset(file_content):
     url = os.getenv('BACKEND_BASE_URL', 'http://localhost:8080') + "/upload"
     upload_dir = os.path.join(working_dir, "uploads")
     os.makedirs(upload_dir, exist_ok=True)
@@ -325,8 +325,34 @@ def upload_dataset_R_backend(file_content):
         return response.status_code
 
 
-def api_call_R_backend(class_feature_type, feature_type_list, classification_output, accuracy_slider, precision_slider,
-                       recall_slider, trtime_slider, use_case, csv_filename):
+def call_backend_api_analyse_dataset(class_label: str, class_feature_type: str, feature_type_list: str):
+    url = os.getenv('BACKEND_BASE_URL', 'http://localhost:8080') + "/analyse-dataset"
+    upload_dir = os.path.join(working_dir, "uploads")  # TODO: skip saving file on disk
+    os.makedirs(upload_dir, exist_ok=True)
+    csv_files = glob.glob(os.path.join(upload_dir, "*.csv"))
+    arff_files = glob.glob(os.path.join(upload_dir, "*.arff"))
+    all_files = sorted(csv_files + arff_files, key=os.path.getmtime)
+    file = all_files[-1].split("/")[-1]
+    json_data = {
+        "class_label": class_label,
+        "class_feature_type": class_feature_type,
+        "feature_type_list": feature_type_list,
+    }
+    print(file)
+    with open(os.path.join(upload_dir, file), "r") as dataset_uploaded:
+        file_dict = {
+            "json": (None, json.dumps(json_data), "application/json"),
+            "file": (str(file), dataset_uploaded, "text/plain")
+        }
+        response = requests.post(url, files=file_dict)
+        if response.status_code != 200:
+            raise Exception(f"Failed to analyse dataset: {response.text}")
+        print(response.text)
+        return response.json()
+
+
+def call_backend_api_report(class_feature_type, feature_type_list, classification_output, accuracy_slider, precision_slider,
+                            recall_slider, trtime_slider, csv_filename):
     # algorithm_family, deployment_type,
     #                   platform, implementation_lang,
     #                   language, tuning_slider,
@@ -351,8 +377,7 @@ def api_call_R_backend(class_feature_type, feature_type_list, classification_out
         "precision_range": precision_slider,
         "recall_range": recall_slider,
         "trtime_range": trtime_slider,
-        "dataset_name": csv_filename,
-        "usecase": use_case
+        "dataset_name": csv_filename
         # "dataset": "dataset.csv"
     }
     print(params_json)
@@ -601,10 +626,6 @@ collection_datasets = dbname["datasets"]
 enriched_datasets = dbname["enriched_models"]
 print("Connected to database !!")
 
-use_case_list = []
-use_case_list = collection_datasets.distinct("Info.use_case")
-use_case_list.insert(0, "----no selection----")
-
 nr_hyperparams_list = enriched_datasets.distinct("nr_hyperparams")
 nr_hyperparams_max = max(nr_hyperparams_list)
 
@@ -720,25 +741,6 @@ language_mode = list(enriched_datasets.aggregate([
     }
 ]))
 language_mode = language_mode[0]["_id"]
-
-use_case = html.Div(
-    [
-        dbc.Label("Use case",
-                  width=7, color="#FFFAF0",
-                  style={"text-align": "center", 'justify': 'left', 'font-size': '20px', 'font-weight': 'bold',
-                         'width': '100%', "background-color": "transparent", "color": "black"}),
-        dbc.Label("Select a use case from the list or type a new one",
-                  width=7, color="#FFFAF0",
-                  style={"text-align": "left", 'justify': 'left', 'font-size': '15px', 'font-weight': 'bold',
-                         'width': '100%', "background-color": "transparent", "color": "black"}),
-        dcc.Dropdown(id="use_case",
-                     options=[
-                         dict({'label': use_case, 'value': use_case}) for use_case in use_case_list
-                     ],
-                     placeholder="Select use-case name here",
-                     style={'width': '100%', 'color': 'black', },
-                     clearable=False, ),
-    ], )
 
 csv_upload = html.Div(
     children=[
@@ -1118,9 +1120,7 @@ classifier_preferences = html.Div([
 sidebar = html.Div(
     children=[
         html.H5(children='Fill in required details and upload dataset', style={'font-weight': 'bold', }),
-        use_case,
         html.Br(),
-        html.H5(id='user_usecase'),
         dataset_characteristics,
         html.Br(),
         classifier_preferences,
@@ -1162,40 +1162,6 @@ app.layout = html.Div(
     ],
 )
 
-'''nr_features = df.shape[1] - 1
-    if(nr_features < 20 ):
-        for i in range(1,nr_features):
-            return_html.children.append(
-                 dbc.Input(id="feature_type_"+str(i),placeholder='Enter datatype of feature '+str(i),value='',type="text", style= {'width': '60%', 'color':'black'}),)
-    else:
-        return_html.children.append(
-                 dbc.Input(id="feature_type_list",placeholder='Enter datatype of all features as a list',value='',type="text", style= {'width': '60%', 'color':'black'}),)
-'''
-
-
-@app.callback(
-    Output('user_usecase', 'children'),
-    Input('use_case', 'value'),
-    prevent_initial_call=True
-)
-def create_use_case_input(selected_value):
-    if ("no selection" in selected_value):
-        user_defined_usecase = dbc.Input(placeholder='Enter use-case name here', value='', type="text",
-                                         style={'width': '100%', 'color': 'black', 'font-size': '15px'})
-        return user_defined_usecase
-
-
-@app.callback(
-    Output('use_case', 'options'),
-    Input('result_section', 'children'),
-    prevent_initial_call=True
-)
-def update_usecase_dropdown(submit_btn_clicks):
-    use_case_list = collection_datasets.distinct("Info.use_case")
-    use_case_list.insert(0, "----no selection----")
-    options = [{'label': use_case, 'value': use_case} for use_case in use_case_list]
-    return options
-
 
 @app.callback(Output('output_data_upload', 'children'),
               Output('class_label', 'options'),
@@ -1227,7 +1193,7 @@ def update_output(list_of_contents, filename: str):
             logger.info("dtypes before serialization:")
             logger.info(df.dtypes)
 
-            error_code = upload_dataset_R_backend(decoded)
+            error_code = call_backend_api_upload_dataset(decoded)
             serialized_df = {
                 'data': df.to_json(date_format='iso', orient='split'),
                 'dtypes': df.dtypes.astype(str).to_json(),
@@ -1267,7 +1233,7 @@ def update_output(list_of_contents, filename: str):
             logger.info("dtypes before serialization:")
             logger.info(df.dtypes)
 
-            error_code = upload_dataset_R_backend(decoded)
+            error_code = call_backend_api_upload_dataset(decoded)
             serialized_df = {
                 'data': df.to_json(date_format='iso', orient='split'),
                 'dtypes': df.dtypes.astype(str).to_json(),
@@ -1293,12 +1259,9 @@ def update_output(list_of_contents, filename: str):
     Output('api_call_response', 'children'),
     [
         Input('submit_button', 'n_clicks'),
-        Input('parsed-data', 'data'),
     ],
     [
-        State('use_case', 'value'),
-        State('user_usecase', 'children'),
-        State('upload-data', 'contents'),
+        State('parsed-data', 'data'),
         State('class_label', 'value'),
         State('class_feature_type', 'value'),
         State('feature_type_list', 'value'),
@@ -1318,28 +1281,24 @@ def update_output(list_of_contents, filename: str):
     ],
     prevent_initial_call=True
 )
-def trigger_data_profiler(submit_btn_clicks, serialized_dataframe, use_case, user_use_case, csv_file_contents, class_label,
+def trigger_data_profiler(submit_btn_clicks, serialized_dataframe, class_label,
                           class_feature_type, feature_type_list, csv_filename,
                           classification_type, accuracy_slider, precision_slider, recall_slider, trtime_slider):
     # algorithm_family, deployment_type, platform, implementation_lang,language, tuning_slider,
     print(type(submit_btn_clicks))
-    if "no selection" in use_case:
-        use_case = user_use_case['props']['value']
-    data_profiler = DataProfiler(csv_filename, class_label, class_feature_type, use_case)
-    mode = ReadMode.READ_FROM_DATAFRAME
-    df = pd.read_json(io.StringIO(serialized_dataframe['data']), orient='split')
-    df = df.astype(json.loads(serialized_dataframe['dtypes']))
-    json_output, db_write_status = data_profiler.analyse_dataset(mode, str(feature_type_list), dataset_df=df)
-    if len(json_output) == 0:
+    response = call_backend_api_analyse_dataset(class_label, class_feature_type, feature_type_list)
+    data_profile = response['data_profile']
+    db_write_status = response['db_write_status']
+    if len(data_profile) == 0:
         print("Error in execution of data_profiler.py")
         return db_write_status, "Feature suggestion not possible", ""
     print("Execution of data_profiler.py Complete")
-    json_output = json.loads(json_output)
+    #json_output = json.loads(data_profile)
     # TODO handle the suggested features here.
-    suggested_features = suggest_features_to_user(json_output, class_feature_type)
+    suggested_features = suggest_features_to_user(data_profile, class_feature_type)
     suggested_features = construct_output_html(suggested_features)
-    response_api_call = api_call_R_backend(class_feature_type, feature_type_list, classification_type, accuracy_slider,
-                                           precision_slider, recall_slider, trtime_slider, use_case, csv_filename)
+    response_api_call = call_backend_api_report(class_feature_type, feature_type_list, classification_type, accuracy_slider,
+                                                precision_slider, recall_slider, trtime_slider, csv_filename)
     # algorithm_family,
     # deployment_type, platform,
     # implementation_lang, language, tuning_slider,

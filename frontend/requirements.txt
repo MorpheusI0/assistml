@@ -4,6 +4,5 @@ dash_renderjson
 pymongo
 pandas
 scipy
-nltk
 scikit-learn
 liac-arff

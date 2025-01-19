@@ -1,7 +1,6 @@
-from flask import Blueprint
+from quart import Blueprint
 
-assistml_bp = Blueprint('assistml', __name__)
-upload_bp = Blueprint('upload', __name__)
+bp = Blueprint('api', __name__)
 
 
-from assistml.api import assistml, upload
+from assistml.api import assistml, upload, analyse_dataset

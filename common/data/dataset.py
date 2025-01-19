@@ -1,0 +1,97 @@
+from typing import Dict, List, ForwardRef, Optional
+
+from beanie import Document, BackLink
+from pydantic import BaseModel, Field
+
+Task = ForwardRef("Task")
+
+
+class Info(BaseModel):
+    mlsea_uri: Optional[str] = None
+    dataset_name: str
+    target_label: str
+    target_feature_type: str
+    observations: int
+    analyzed_observations: int
+    features: int
+    numeric_ratio: float
+    categorical_ratio: float
+    datetime_ratio: float
+    unstructured_ratio: float
+    analyzed_features: list[str]
+    discarded_features: list[str]
+    analysis_time: float
+
+
+class Quantiles(BaseModel):
+    q0: float
+    q1: float
+    q2: float
+    q3: float
+    q4: float
+    iqr: float
+
+
+class Outliers(BaseModel):
+    number: int
+    actual_values: list[float] = Field(alias="Actual_Values")
+
+
+class Distribution(BaseModel):
+    normal: bool
+    exponential: bool
+
+
+class NumericalFeature(BaseModel):
+    monotonous_filtering: float
+    anova_f1: float
+    anova_pvalue: float
+    mutual_info: float
+    missing_values: int
+    min_orderm: float
+    max_orderm: float
+    quartiles: Quantiles = Field(alias="Quartiles")
+    outliers: Outliers = Field(alias="Outliers")
+    distribution: Distribution = Field(alias="Distribution")
+
+
+class CategoricalFeature(BaseModel):
+    missing_values: int
+    nr_levels: int
+    levels: Dict[str, str] = Field(alias="Levels")
+    imbalance: float
+    mutual_info: float
+    monotonous_filtering: float
+
+
+class UnstructuredFeature(BaseModel):
+    missing_values: int
+    vocab_size: int
+    relative_vocab: float
+    vocab_concentration: float
+    entropy: float
+    min_vocab: int
+    max_vocab: int
+
+
+class DatetimeFeature(BaseModel):
+    pass
+
+
+class Features(BaseModel):
+    numerical_features: Dict[str, NumericalFeature] = Field(alias="Numerical_Features")
+    categorical_features: Dict[str, CategoricalFeature] = Field(alias="Categorical_Features")
+    unstructured_features: Dict[str, UnstructuredFeature] = Field(alias="Unstructured_Features")
+    datetime_features: Dict[str, DatetimeFeature] = Field(alias="Datetime_Features")
+
+
+class Dataset(Document):
+    info: Info = Field(alias="Info")
+    features: Features = Field(alias="Features")
+    tasks: List[BackLink[Task]] = Field(original_field="dataset")
+
+    class Settings:
+        name = "datasets"
+
+#from .task import Task
+#Dataset.update_forward_refs()

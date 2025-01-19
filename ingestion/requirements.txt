@@ -1,0 +1,3 @@
+sparql_dataframe
+beanie
+pydantic
