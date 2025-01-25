@@ -7,7 +7,7 @@ from typing import List, Dict, Union
 from quart import current_app
 from pymongo import MongoClient
 
-from modules import data_encoder, association_python, analysis
+from modules import data_encoder, association, analysis
 
 
 def python_rules(model_codes: List[str]) -> List[Dict[str, Union[str, float, List[str]]]]:
@@ -38,9 +38,9 @@ def python_rules(model_codes: List[str]) -> List[Dict[str, Union[str, float, Lis
     sys.argv = ["data_encoder.py", "[fam_name,nr_hyperparams_label,performance_gap,quantile_accuracy,quantile_recall,quantile_precision,platform,quantile_training_time,nr_dependencies]", f'[{",".join(model_codes)}]']
     data_encoder.main()
 
-    current_app.logger.info("Calling python association_python.py")
-    sys.argv = ["association_python.py", "0", "0.7", "0.25"]
-    association_python.main()
+    rules_input_file = os.path.join(working_dir, "merged_data_selectedcols.csv")
+    rules_output_dir = os.path.join(working_dir, "FPGROWTH")
+    rules = association.generate_rules(rules_input_file, "confidence", 0.7, 0.25, rules_output_dir)
 
     current_app.logger.info("Calling python analysis.py")
     sys.argv = ["analysis.py", "0.5", "0.01", "1.2"]
