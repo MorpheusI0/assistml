@@ -8,7 +8,7 @@ from quart import request, jsonify, current_app
 from werkzeug.datastructures import FileStorage
 
 from assistml.api import bp
-from common import DataProfiler
+from common.data_profiler import DataProfiler
 from common.data_profiler import ReadMode
 from common.data import Dataset
 from common.data.projection import dataset as dataset_projection

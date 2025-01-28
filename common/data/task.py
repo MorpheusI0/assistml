@@ -18,7 +18,7 @@ class Task(Document):
     mlsea_uri: Optional[str] = None
     use_case_set: UseCaseSet = Field(alias="UseCaseSet")
     dataset: Optional[Link[Dataset]]
-    related_implementations: List[Link[Implementation]] = Field(original_field="task", default=[])
+    related_implementations: List[Link[Implementation]] = Field(original_field="task", default=list)
     models: List[BackLink[Model]] = Field(original_field="task")
 
     class Settings:

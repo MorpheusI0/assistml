@@ -1,8 +1,10 @@
-dash
+dash-flash
+python-dotenv
 dash_bootstrap_components
 dash_renderjson
-pymongo
+pydantic
 pandas
-scipy
 scikit-learn
 liac-arff
+beanie
+httpx

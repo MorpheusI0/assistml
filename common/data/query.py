@@ -34,6 +34,7 @@ class ModelReport(BaseModel):
 class Report(BaseModel):
     summary: Summary
     acceptable_models: List[ModelReport]
+    nearly_acceptable_models: List[ModelReport] = Field(list)
 
 
 class Query(Document):

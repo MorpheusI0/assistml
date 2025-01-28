@@ -10,5 +10,5 @@ RUN CFLAGS="-O2" pip install -r requirements.txt
 
 ENV PYTHONUNBUFFERED=1
 
-WORKDIR /app/modules
-ENTRYPOINT ["python3", "assist_dashboard.py"]
+WORKDIR /app
+ENTRYPOINT ["python3", "run.py"]

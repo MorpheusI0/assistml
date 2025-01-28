@@ -49,7 +49,10 @@ services:
     ports:
       - "8050:8050"
     volumes:
-      - "./frontend/modules/:/app/modules/:ro"
+      - "./common/:/app/common/:ro"
+      - "./frontend/assistml_dashboard/:/app/assistml_dashboard/:ro"
+      - "./frontend/run.py:/app/run.py:ro"
+      - "./frontend/config.py:/app/config.py:ro"
     env_file:
       - frontend/dashboard-docker.env
 
