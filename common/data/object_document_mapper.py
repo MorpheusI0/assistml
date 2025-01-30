@@ -12,12 +12,14 @@ from .enriched_model import EnrichedModel
 
 class ObjectDocumentMapper:
     def __init__(self, host: str = Config.MONGO_HOST, port: int = Config.MONGO_PORT, username: str = Config.MONGO_USER,
-                 password: str = Config.MONGO_PASS, db: str = Config.MONGO_DB):
+                 password: str = Config.MONGO_PASS, db: str = Config.MONGO_DB, tls: bool = Config.MONGO_TLS):
         self._client = AsyncIOMotorClient(
             host=host,
             port=port,
             username=username,
-            password=password
+            password=password,
+            authSource=db,
+            tls=tls
         )
         self._db = self._client[db]
 

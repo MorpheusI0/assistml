@@ -21,6 +21,7 @@ class Config(object):
     MONGO_USER = os.getenv("MONGO_USER")
     MONGO_PASS = os.getenv("MONGO_PASS")
     MONGO_DB = os.getenv("MONGO_DB", "assistml")
+    MONGO_TLS = _parse_bool(os.getenv("MONGO_TLS", False))
 
     assert BACKEND_BASE_URL is not None, "BACKEND_BASE_URL must be set"
 
