@@ -11,7 +11,7 @@ async def main():
     await odm.connect()
 
     dataset_processor = DatasetProcessor(mlsea)
-    await dataset_processor.process(recursive=True, head=3)
+    await dataset_processor.process(recursive=True, head=10)
 
 
 if __name__ == '__main__':

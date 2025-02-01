@@ -20,7 +20,7 @@ class MLSeaRepository:
     """
 
     def __init__(self, sparql_endpoint: str = Config.MLSEA_SPARQL_ENDPOINT, use_cache: bool = Config.MLSEA_USE_CACHE,
-                 cache_dir_path: str = Config.MLSEA_CACHE_DIR, retries: int = 3, rate_limit: int = 30):
+                 cache_dir_path: str = Config.MLSEA_CACHE_DIR, retries: int = 3, rate_limit: int = 60):
         self._sparql_endpoint = sparql_endpoint
         self._use_cache = use_cache
         self._cache_dir_path = cache_dir_path
@@ -79,6 +79,18 @@ class MLSeaRepository:
             pd.DataFrame: The DataFrame with the retrieved implementations.
         """
         return self._execute_query_with_retries(Query.RETRIEVE_ALL_IMPLEMENTATIONS_FROM_OPENML_FOR_TASK, taskId=task_id)
+
+    def retrieve_implementation_from_openml(self, implementation_id: int):
+        """
+        Retrieves a specific implementation from OpenML.
+
+        Args:
+            implementation_id (int): The ID of the implementation.
+
+        Returns:
+            pd.DataFrame: The DataFrame with the retrieved implementation.
+        """
+        return self._execute_query_with_retries(Query.RETRIEVE_IMPLEMENTATION_FROM_OPENML, implementationId=implementation_id)
 
     def retrieve_dependencies_from_openml_for_implementation(self, implementation_id: int):
         """

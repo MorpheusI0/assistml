@@ -1,12 +1,17 @@
 import re
+from collections import OrderedDict
 from typing import Optional, List
 
-from common.data.implementation import Software
+import openml
+from beanie import WriteRules, Link
 
 from common.data import Task, Implementation
+from common.data.implementation import Parameter, Software
 from mlsea import MLSeaRepository
 from mlsea.dtos import ImplementationDto, SoftwareDto
 
+
+IMPLEMENTATION_BASE_URI = "http://w3id.org/mlsea/openml/flow/"
 
 class ImplementationProcessor:
     def __init__(self, mlsea: MLSeaRepository):
@@ -27,11 +32,24 @@ class ImplementationProcessor:
                 implementation_dto.openml_flow_id)
             software_dtos = [SoftwareDto(*software_dto) for software_dto in software_df.itertuples(index=False)]
 
-            await ImplementationProcessor._ensure_implementation_exists(implementation_dto, software_dtos, task)
+            implementation: Implementation = await self._ensure_implementation_exists(implementation_dto, software_dtos)
+            task.related_implementations.append(implementation)
+        await task.save(link_rule=WriteRules.DO_NOTHING)
 
-    @staticmethod
-    async def _ensure_implementation_exists(implementation_dto: ImplementationDto, software_dtos: List[SoftwareDto],
-                                            task: Task):
+    async def find_or_create(self, openml_implementation_id: int) -> Implementation:
+        implementation = await Implementation.find_one(Implementation.mlsea_uri == f"{IMPLEMENTATION_BASE_URI}{openml_implementation_id}")
+        if implementation is not None:
+            return implementation
+
+        implementation_df = self._mlsea.retrieve_implementation_from_openml(openml_implementation_id)
+        implementation_dto = ImplementationDto(*implementation_df.iloc[0])
+        software_df = self._mlsea.retrieve_dependencies_from_openml_for_implementation(openml_implementation_id)
+        software_dtos = [SoftwareDto(*software_dto) for software_dto in software_df.itertuples(index=False)]
+
+        implementation: Implementation = await self._ensure_implementation_exists(implementation_dto, software_dtos)
+        return implementation
+
+    async def _ensure_implementation_exists(self, implementation_dto: ImplementationDto, software_dtos: List[SoftwareDto]):
         implementation: Optional[Implementation] = await Implementation.find_one(
             Implementation.mlsea_uri == implementation_dto.mlsea_implementation_uri)
 
@@ -44,13 +62,33 @@ class ImplementationProcessor:
             for parsed_dependency in ImplementationProcessor._transform_software_dto(software_dto)
         ]
 
+        openml_flow = openml.flows.get_flow(implementation_dto.openml_flow_id)
+        parameters_meta_info = openml_flow.parameters_meta_info
+        parameters = OrderedDict[str, Parameter]()
+        for param, default_value in openml_flow.parameters.items():
+            parameters[param] = Parameter(
+                default_value=default_value,
+                type=parameters_meta_info[param]['data_type'],
+                description=parameters_meta_info[param]['description']
+            )
+
+        components = {}
+        for component_name, component in openml_flow.components.items():
+            implementation = await self.find_or_create(component.flow_id)
+            if implementation is None:
+                raise ValueError(f"Could not find or create implementation for component: {component.flow_id}")
+            components[component_name] = Link(implementation.to_ref(), Implementation)
+
+
         implementation = Implementation(
             mlsea_uri=implementation_dto.mlsea_implementation_uri,
-            title=implementation_dto.title,
-            task=task,
+            title=openml_flow.name,
+            parameters=parameters,
+            components=components,
+            description=openml_flow.description,
             dependencies=dependencies
-        )  # TODO: add hyperparameters with default values
-        await implementation.insert()
+        )
+        await implementation.insert(link_rule=WriteRules.DO_NOTHING)
         return implementation
 
     @staticmethod

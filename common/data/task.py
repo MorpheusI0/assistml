@@ -18,12 +18,13 @@ class Task(Document):
     mlsea_uri: Optional[str] = None
     use_case_set: UseCaseSet = Field(alias="UseCaseSet")
     dataset: Optional[Link[Dataset]]
-    related_implementations: List[Link[Implementation]] = Field(original_field="task", default=list)
-    models: List[BackLink[Model]] = Field(original_field="task")
+    related_implementations: Optional[List[Link[Implementation]]] = Field(default_factory=list)
+    #models: Optional[List[BackLink[Model]]] = Field(json_schema_extra={"original_field": "task"})
 
     class Settings:
         name = "tasks"
         keep_nulls = False
+        validate_on_save = True
 
 #from .model import Model
-#Task.update_forward_refs()
+#Task.model_rebuild()

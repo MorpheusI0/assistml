@@ -150,6 +150,22 @@ RETRIEVE_ALL_IMPLEMENTATIONS_FROM_OPENML_FOR_TASK = Template("""
     } ORDER BY ?id
     """)
 
+RETRIEVE_IMPLEMENTATION_FROM_OPENML = Template("""
+    $PREFIXES
+    SELECT
+        (?i AS ?mlsea_implementation_uri)
+        (?id AS ?openml_flow_id)
+        (?i_url AS ?openml_flow_url)
+        (?i_title AS ?implementation_title)
+    WHERE {
+        BIND(mlsea_openml_flow:$implementationId AS ?i)
+        ?i a mls:Implementation .
+        ?i purl:identifier ?id .
+        ?i purl:title ?i_title .
+        ?i prov:atLocation ?i_url .
+    } ORDER BY ?id
+    """)
+
 RETRIEVE_ALL_DEPENDENCIES_FROM_OPENML_FOR_IMPLEMENTATION = Template("""
     $PREFIXES
     SELECT

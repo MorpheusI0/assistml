@@ -88,11 +88,12 @@ class Features(BaseModel):
 class Dataset(Document):
     info: Info = Field(alias="Info")
     features: Features = Field(alias="Features")
-    tasks: List[BackLink[Task]] = Field(original_field="dataset")
+    tasks: List[BackLink[Task]] = Field(json_schema_extra={"original_field": "dataset"})
 
     class Settings:
         name = "datasets"
         keep_nulls = False
+        validate_on_save = True
 
 #from .task import Task
 #Dataset.update_forward_refs()

@@ -5,7 +5,7 @@ from common.data.dataset import Info, Features
 
 
 class EmptyView(BaseModel):
-    id: PydanticObjectId
+    id: PydanticObjectId = Field(alias="_id")
 
     class Settings:
         projection = {"id": "$_id"}
