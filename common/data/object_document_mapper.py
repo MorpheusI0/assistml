@@ -2,12 +2,12 @@ from beanie import init_beanie
 from motor.motor_asyncio import AsyncIOMotorClient
 
 from config import Config
-from .model import Model
 from .dataset import Dataset
-from .implementation import Implementation
-from .query import Query
-from .task import Task
 from .enriched_model import EnrichedModel
+from .implementation import Implementation
+from .model import Model
+from .query import Query
+from .task import Task, ClassificationTask, RegressionTask, ClusteringTask, LearningCurveTask
 
 
 class ObjectDocumentMapper:
@@ -26,5 +26,6 @@ class ObjectDocumentMapper:
     async def connect(self):
         await init_beanie(
             database=self._db,
-            document_models=[Dataset, Task, Implementation, Model, Query, EnrichedModel]
+            document_models=[Dataset, Task, ClassificationTask, RegressionTask, ClusteringTask, LearningCurveTask,
+                             Implementation, Model, Query, EnrichedModel]
         )

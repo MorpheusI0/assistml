@@ -487,24 +487,24 @@ class DataProfiler():
                 self.json_data["Info"]["discarded_features"].append(feature)
                 print(feature + " is dropped for having missing values more than 1/4 the whole size of the dataset")
 
-    def analyse_text_features(self):
+    def analyse_unstructured_features(self):
         print("Analysing text features")
-        self.json_data["Features"]["Text_Features"] = {}
+        self.json_data["Features"]["Unstructured_Features"] = {}
         #features = self.unstructured_features
         for column_nr in self.unstructured_features:
             feature = self.column_names_list[column_nr]
             if feature not in self.drop_cols:
                 self.json_data["Info"]["analyzed_features"].append(feature)
-                self.json_data["Features"]["Text_Features"][feature] = {}
+                self.json_data["Features"]["Unstructured_Features"][feature] = {}
                 # Calculate missing values
-                self.json_data["Features"]["Text_Features"][feature]['missing_values'] = self.miss_value[feature]
+                self.json_data["Features"]["Unstructured_Features"][feature]['missing_values'] = self.miss_value[feature]
                 (vocab_size, relative_vocab, vocab_concentration, entropy, min_vocab, max_vocab) = self.text_statistics(self.df, feature)
-                self.json_data["Features"]["Text_Features"][feature]["vocab_size"] = vocab_size
-                self.json_data["Features"]["Text_Features"][feature]["relative_vocab"] = relative_vocab
-                self.json_data["Features"]["Text_Features"][feature]["vocab_concentration"] = vocab_concentration
-                self.json_data["Features"]["Text_Features"][feature]["entropy"] = entropy
-                self.json_data["Features"]["Text_Features"][feature]["min_vocab"] = min_vocab
-                self.json_data["Features"]["Text_Features"][feature]["max_vocab"] = max_vocab
+                self.json_data["Features"]["Unstructured_Features"][feature]["vocab_size"] = vocab_size
+                self.json_data["Features"]["Unstructured_Features"][feature]["relative_vocab"] = relative_vocab
+                self.json_data["Features"]["Unstructured_Features"][feature]["vocab_concentration"] = vocab_concentration
+                self.json_data["Features"]["Unstructured_Features"][feature]["entropy"] = entropy
+                self.json_data["Features"]["Unstructured_Features"][feature]["min_vocab"] = min_vocab
+                self.json_data["Features"]["Unstructured_Features"][feature]["max_vocab"] = max_vocab
 
             else:
                 self.json_data["Info"]["discarded_features"].append(feature)
@@ -612,7 +612,7 @@ class DataProfiler():
             error_message = "Please recheck feature type of the feature: " + analysis_status
             return {}, error_message
         self.analyse_categorical_features()
-        self.analyse_text_features()
+        self.analyse_unstructured_features()
         self.analyse_datetime_features()
         stop = time.time()
         analysis_time = stop - start

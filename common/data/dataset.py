@@ -31,6 +31,9 @@ class Quantiles(BaseModel):
     q4: float
     iqr: float
 
+    class Config:
+        ser_json_inf_nan = 'constants'
+
 
 class Outliers(BaseModel):
     number: int
@@ -48,11 +51,14 @@ class NumericalFeature(BaseModel):
     anova_pvalue: float
     mutual_info: float
     missing_values: int
-    min_orderm: float
-    max_orderm: float
+    min_orderm: float = Field(allow_inf_nan=True)
+    max_orderm: float = Field(allow_inf_nan=True)
     quartiles: Quantiles = Field(alias="Quartiles")
     outliers: Outliers = Field(alias="Outliers")
     distribution: Distribution = Field(alias="Distribution")
+
+    class Config:
+        ser_json_inf_nan = 'constants'
 
 
 class CategoricalFeature(BaseModel):
@@ -63,6 +69,9 @@ class CategoricalFeature(BaseModel):
     mutual_info: float
     monotonous_filtering: float
 
+    class Config:
+        ser_json_inf_nan = 'constants'
+
 
 class UnstructuredFeature(BaseModel):
     missing_values: int
@@ -72,6 +81,9 @@ class UnstructuredFeature(BaseModel):
     entropy: float
     min_vocab: int
     max_vocab: int
+
+    class Config:
+        ser_json_inf_nan = 'constants'
 
 
 class DatetimeFeature(BaseModel):
@@ -92,8 +104,8 @@ class Dataset(Document):
 
     class Settings:
         name = "datasets"
-        keep_nulls = False
-        validate_on_save = True
+        #keep_nulls = False
+        #validate_on_save = True. # breaks dataset insertion
 
 #from .task import Task
 #Dataset.update_forward_refs()
