@@ -1,3 +1,4 @@
+from enum import Enum
 from typing import Dict, List, ForwardRef, Optional
 
 from beanie import Document, BackLink
@@ -6,11 +7,16 @@ from pydantic import BaseModel, Field
 Task = ForwardRef("Task")
 
 
+class TargetFeatureType(str, Enum):
+    BINARY = "binary"
+    MULTICLASS = "multiclass"
+    REGRESSION = "regression"
+
 class Info(BaseModel):
     mlsea_uri: Optional[str] = None
     dataset_name: str
     target_label: str
-    target_feature_type: str
+    target_feature_type: TargetFeatureType
     observations: int
     analyzed_observations: int
     features: int
@@ -49,7 +55,7 @@ class NumericalFeature(BaseModel):
     monotonous_filtering: float
     anova_f1: float
     anova_pvalue: float
-    mutual_info: float
+    mutual_info: Optional[float] = None  # Does not exist for regression
     missing_values: int
     min_orderm: float = Field(allow_inf_nan=True)
     max_orderm: float = Field(allow_inf_nan=True)

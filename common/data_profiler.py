@@ -12,6 +12,9 @@ import io
 import time
 import nltk
 from nltk.corpus import stopwords
+
+from data.dataset import TargetFeatureType
+
 nltk.download('stopwords')
 nltk.download('punkt')
 nltk.download('punkt_tab')
@@ -372,11 +375,12 @@ class DataProfiler():
         if not (len(numericalFeatures) == 0):
             anova_f1 = f_classif(numericalFeatures, self.df[self.class_label])[0]
             anova_pvalue = f_classif(numericalFeatures, self.df[self.class_label])[1]
-            if 'categoric' in self.target_feature_type or 'Categoric' in self.target_feature_type or 'binary' in self.target_feature_type or 'Binary' in self.target_feature_type or 'categorical' in self.target_feature_type or 'Categorical' in self.target_feature_type:
+            if self.target_feature_type in [TargetFeatureType.BINARY, TargetFeatureType.MULTICLASS]:
                 y = self.df[self.class_label]
                 mi = mutual_info_classif(numericalFeatures, self.df[self.class_label], random_state=42)
             else:
-                mi = mutual_info_classif(numericalFeatures, self.df[self.class_label], random_state=42)
+                # For regression problems, we can't calculate mutual information
+                mi = None
         counter = 0
         try:
             for column_nr in self.numerical_features:
@@ -391,7 +395,8 @@ class DataProfiler():
                     # Assign the p value from the anova:
                     self.json_data["Features"]["Numerical_Features"][feature]['anova_pvalue'] = anova_pvalue[counter]
                     # Assign the mutual information for the feature
-                    self.json_data["Features"]["Numerical_Features"][feature]['mutual_info'] = mi[counter]
+                    if mi is not None:
+                        self.json_data["Features"]["Numerical_Features"][feature]['mutual_info'] = mi[counter]
                     counter = counter + 1
                     # Calculate missing values
                     self.json_data["Features"]["Numerical_Features"][feature]['missing_values'] = self.miss_value[
