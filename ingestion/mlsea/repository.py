@@ -20,7 +20,7 @@ class MLSeaRepository:
     """
 
     def __init__(self, sparql_endpoint: str = Config.MLSEA_SPARQL_ENDPOINT, use_cache: bool = Config.MLSEA_USE_CACHE,
-                 cache_dir_path: str = Config.MLSEA_CACHE_DIR, retries: int = 3, rate_limit: int = 60):
+                 cache_dir_path: str = Config.MLSEA_CACHE_DIR, retries: int = 3, rate_limit: int = 120):
         self._sparql_endpoint = sparql_endpoint
         self._use_cache = use_cache
         self._cache_dir_path = cache_dir_path
@@ -28,31 +28,39 @@ class MLSeaRepository:
         self._rate_limit = rate_limit  # maximum number of requests per minute
         self._last_request_time = 0
 
-    def retrieve_datasets_from_openml(self, dataset_ids: List[int] = None):
+    def retrieve_datasets_from_openml(self, dataset_ids: List[int] = None, batch_size: int = 0, offset_id: int = 0):
         """
-        Retrieves a specific dataset from OpenML or all datasets if no ID is provided.
+        Retrieves specific datasets from OpenML or all datasets if no ID is provided.
 
         Args:
-            dataset_ids (List[int], optional): The IDs of the datasets to retrieve.
+            dataset_ids (List[int], optional): The IDs of the datasets to retrieve. Defaults to None.
+            batch_size (int, optional): The number of datasets to retrieve in a batch. Defaults to 0, which means all datasets.
+            offset_id (int, optional): The offset from which to start retrieving datasets (exclusively). Defaults to 0.
 
         Returns:
             pd.DataFrame: The DataFrame with the retrieved datasets.
         """
         if dataset_ids is None:
+            if batch_size > 0:
+                return self._execute_query_with_retries(Query.RETRIEVE_BATCHED_DATASETS_FROM_OPENML, limit=batch_size, offsetId=offset_id)
             return self._execute_query_with_retries(Query.RETRIEVE_ALL_DATASETS_FROM_OPENML)
         dataset_ids = " ".join([f"mlsea_openml_dataset:{dataset_id}" for dataset_id in dataset_ids])
         return self._execute_query_with_retries(Query.RETRIEVE_DATASETS_FROM_OPENML, datasetId=dataset_ids)
 
-    def retrieve_all_tasks_from_openml_for_dataset(self, dataset_id: int):
+    def retrieve_all_tasks_from_openml_for_dataset(self, dataset_id: int, batch_size: int = 0, offset_id: int = 0):
         """
         Retrieves all tasks from OpenML for a specific dataset.
 
         Args:
             dataset_id (int): The ID of the dataset.
+            batch_size (int, optional): The number of tasks to retrieve in a batch. Defaults to 0, which means all tasks.
+            offset_id (int, optional): The offset from which to start retrieving tasks (exclusively). Defaults to 0.
 
         Returns:
             pd.DataFrame: The DataFrame with the retrieved tasks.
         """
+        if batch_size > 0:
+            return self._execute_query_with_retries(Query.RETRIEVE_BATCHED_TASKS_FROM_OPENML_FOR_DATASET, datasetId=dataset_id, limit=batch_size, offsetId=offset_id)
         return self._execute_query_with_retries(Query.RETRIEVE_ALL_TASKS_FROM_OPENML_FOR_DATASET, datasetId=dataset_id)
 
     def retrieve_all_evaluation_procedure_types_from_openml_for_task(self, task_id: int):
@@ -68,16 +76,20 @@ class MLSeaRepository:
         return self._execute_query_with_retries(Query.RETRIEVE_ALL_EVALUATION_PROCEDURE_TYPES_FROM_OPENML_FOR_TASK,
                                                 taskId=task_id)
 
-    def retrieve_all_implementations_from_openml_for_task(self, task_id: int):
+    def retrieve_all_implementations_from_openml_for_task(self, task_id: int, batch_size: int = 0, offset_id: int = 0):
         """
         Retrieves all implementations from OpenML for a specific task.
 
         Args:
             task_id (int): The ID of the task.
+            batch_size (int, optional): The number of implementations to retrieve in a batch. Defaults to 0, which means all implementations.
+            offset_id (int, optional): The offset from which to start retrieving implementations (exclusively). Defaults to 0.
 
         Returns:
             pd.DataFrame: The DataFrame with the retrieved implementations.
         """
+        if batch_size > 0:
+            return self._execute_query_with_retries(Query.RETRIEVE_BATCHED_IMPLEMENTATIONS_FROM_OPENML_FOR_TASK, taskId=task_id, limit=batch_size, offsetId=offset_id)
         return self._execute_query_with_retries(Query.RETRIEVE_ALL_IMPLEMENTATIONS_FROM_OPENML_FOR_TASK, taskId=task_id)
 
     def retrieve_implementation_from_openml(self, implementation_id: int):
@@ -105,16 +117,20 @@ class MLSeaRepository:
         return self._execute_query_with_retries(Query.RETRIEVE_ALL_DEPENDENCIES_FROM_OPENML_FOR_IMPLEMENTATION,
                                                 implementationId=implementation_id)
 
-    def retrieve_all_runs_from_openml_for_task(self, task_id: int):
+    def retrieve_all_runs_from_openml_for_task(self, task_id: int, batch_size: int = 0, offset_id: int = 0):
         """
         Retrieves all runs from OpenML for a specific task.
 
         Args:
             task_id (int): The ID of the task.
+            batch_size (int, optional): The number of runs to retrieve in a batch. Defaults to 0, which means all runs.
+            offset_id (int, optional): The offset from which to start retrieving runs (exclusively). Defaults to 0.
 
         Returns:
             pd.DataFrame: The DataFrame with the retrieved runs.
         """
+        if batch_size > 0:
+            return self._execute_query_with_retries(Query.RETRIEVE_BATCHED_RUNS_FROM_OPENML_FOR_TASK, taskId=task_id, limit=batch_size, offsetId=offset_id)
         return self._execute_query_with_retries(Query.RETRIEVE_ALL_RUNS_FROM_OPENML_FOR_TASK, taskId=task_id)
 
     def retrieve_all_metrics_from_openml_for_run(self, run_id: int):
@@ -149,7 +165,8 @@ class MLSeaRepository:
             try:
                 return pd.read_csv(file_path)
             except FileNotFoundError:
-                print("No cached response found for query, querying endpoint...")
+                #print("No cached response found for query, querying endpoint...")
+                pass
 
         self._ensure_rate_limit()
         result_df = sparql_dataframe.get(self._sparql_endpoint, query(**params))

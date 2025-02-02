@@ -32,6 +32,7 @@ class SoftwareDto(NamedTuple):
 
 class RunDto(NamedTuple):
     mlsea_run_uri: str
+    openml_run_id: int
     openml_run_url: str
     mlsea_implementation_uri: str
 

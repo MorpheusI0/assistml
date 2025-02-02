@@ -17,25 +17,37 @@ class TaskProcessor:
     def __init__(self, mlsea: MLSeaRepository):
         self._mlsea = mlsea
 
-    async def process_all(self, dataset: Dataset, recursive: bool = False, head: int = None):
+    async def process_all(self, dataset: Dataset, recursive: bool = False, head: int = None, offset_id: int = 0):
         dataset_id = int(dataset.info.mlsea_uri.split('/')[-1])
-        dataset_tasks_df = self._mlsea.retrieve_all_tasks_from_openml_for_dataset(dataset_id)
-        print(dataset_tasks_df.head())
+        count = 0
+        while True:
+            dataset_tasks_df = self._mlsea.retrieve_all_tasks_from_openml_for_dataset(dataset_id, batch_size=100, offset_id=offset_id)
+            if dataset_tasks_df.empty:
+                break
 
-        if head is not None:
-            dataset_tasks_df = dataset_tasks_df.head(head)
+            if head is not None:
+                dataset_tasks_df = dataset_tasks_df.head(head-count)
 
-        for task_dto in dataset_tasks_df.itertuples(index=False):
-            task_dto = TaskDto(*task_dto)
+            for task_dto in dataset_tasks_df.itertuples(index=False):
+                task_dto = TaskDto(*task_dto)
 
-            task: Task = await TaskProcessor._ensure_task_exists(task_dto, dataset)
+                print(f"Processing task {task_dto.openml_task_id}")
 
-            if recursive:
-                implementation_processor = ImplementationProcessor(self._mlsea)
-                await implementation_processor.process_all(task, recursive, head)
+                task: Task = await TaskProcessor._ensure_task_exists(task_dto, dataset)
 
-                model_processor = ModelProcessor(self._mlsea)
-                await model_processor.process_all(task, recursive, head)
+                if recursive:
+                    implementation_processor = ImplementationProcessor(self._mlsea)
+                    await implementation_processor.process_all(task, recursive, head)
+
+                    model_processor = ModelProcessor(self._mlsea)
+                    await model_processor.process_all(task, recursive, head)
+
+                count += 1
+                offset_id = task_dto.openml_task_id
+
+            if head is not None and count >= head:
+                break
+
 
     @staticmethod
     async def _ensure_task_exists(task_dto: TaskDto, dataset: Dataset):

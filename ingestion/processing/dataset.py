@@ -4,6 +4,7 @@ import pandas as pd
 from sklearn.datasets import fetch_openml
 
 from common.data import Dataset
+from data.dataset import TargetFeatureType
 from mlsea import MLSeaRepository, DatasetDto
 from processing.task import TaskProcessor
 
@@ -14,21 +15,32 @@ class DatasetProcessor:
     def __init__(self, mlsea: MLSeaRepository):
         self._mlsea = mlsea
 
-    async def process(self, dataset_ids: List[int] = None, recursive: bool = False, head: int = None):
-        datasets_df = self._mlsea.retrieve_datasets_from_openml(dataset_ids)
-        print(datasets_df.head())
+    async def process(self, dataset_ids: List[int] = None, recursive: bool = False, head: int = None, offset_id: int = 0):
+        count = 0
+        while True:
+            datasets_df = self._mlsea.retrieve_datasets_from_openml(dataset_ids, batch_size=10, offset_id=offset_id)
+            if datasets_df.empty:
+                break
 
-        if head is not None:
-            datasets_df = datasets_df.head(head)
+            if head is not None:
+                datasets_df = datasets_df.head(head-count)
 
-        for dataset_dto in datasets_df.itertuples(index=False):
-            dataset_dto = DatasetDto(*dataset_dto)
+            for dataset_dto in datasets_df.itertuples(index=False):
+                dataset_dto = DatasetDto(*dataset_dto)
 
-            dataset: Dataset = await DatasetProcessor._ensure_dataset_exists(dataset_dto)
+                print(f"Processing dataset {dataset_dto.openml_dataset_id}")
 
-            if recursive:
-                task_processor = TaskProcessor(self._mlsea)
-                await task_processor.process_all(dataset, recursive, head)
+                dataset: Dataset = await DatasetProcessor._ensure_dataset_exists(dataset_dto)
+
+                if recursive:
+                    task_processor = TaskProcessor(self._mlsea)
+                    await task_processor.process_all(dataset, recursive, head)
+
+                count += 1
+                offset_id = dataset_dto.openml_dataset_id
+
+            if head is not None and count >= head:
+                break
 
     @staticmethod
     async def _ensure_dataset_exists(dataset_dto: DatasetDto):
@@ -75,12 +87,17 @@ class DatasetProcessor:
     def _recognize_classification_output_type(df: pd.DataFrame, target_feature: str):
         if df.dtypes[target_feature] == 'category':
             if len(df[target_feature].cat.categories) == 2:
-                return 'binary'
+                return TargetFeatureType.BINARY
             elif len(df[target_feature].cat.categories) > 2:
-                return 'multi-class'
+                return TargetFeatureType.MULTICLASS
             else:
-                return 'single-class'
-        elif df.dtypes[target_feature] in ['int64', 'float64', 'numeric']:
-            return 'regression'
+                raise ValueError("Unrecognized type. Category with less than 2 categories")
+        elif df.dtypes[target_feature] == 'int64':
+            if len(df[target_feature].unique()) == 2:
+                return TargetFeatureType.BINARY
+            elif len(df[target_feature].unique()) > 2:
+                return TargetFeatureType.MULTICLASS
+        elif df.dtypes[target_feature] in ['float64', 'numeric']:
+            return TargetFeatureType.REGRESSION
         else:
             raise ValueError("Unrecognized type")

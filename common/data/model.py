@@ -1,22 +1,11 @@
-from typing import Dict, Union, Optional
+from typing import Dict, Union, Optional, Any
 
 import pydantic
 from beanie import Document, Link
 from pydantic import Field
 
+from .implementation import Implementation
 from .task import Task
-
-
-class Preprocessing(pydantic.BaseModel):
-    categorical_encoding: str
-    numerical_encoding: str
-    categorical_selection: str
-    date_encoding: str
-    text_encoding: str
-    numerical_selection: str
-    datetime_encoding: str
-    datetime_selection: str
-    text_selection: str
 
 
 class DataMetaData(pydantic.BaseModel):
@@ -31,7 +20,6 @@ class DataMetaData(pydantic.BaseModel):
     list_of_columns_used: list[str]
     dataset_name: str
     cols_pre_preprocessing: int
-    preprocessing: Preprocessing = Field(alias="Preprocessing")
     cols_afr_preprocessing: int
 
 
@@ -41,7 +29,7 @@ class Dependencies(pydantic.BaseModel):
 
 
 class TrainingCharacteristics(pydantic.BaseModel):
-    hyper_parameters: Dict[str, Union[str, int]] = Field(alias="Hyper_Parameters", default_factory=dict)
+    hyper_parameters: Dict[str, Any] = Field(alias="Hyper_Parameters", default_factory=dict)
     test_size: float
     seed_value: int
     cross_validation_folds: int
@@ -78,10 +66,11 @@ class Info(pydantic.BaseModel):
 
 
 class BaseModel(pydantic.BaseModel):
-    data_meta_data: DataMetaData = Field(alias="Data_Meta_Data")
+    #data_meta_data: DataMetaData = Field(alias="Data_Meta_Data")
     training_characteristics: TrainingCharacteristics = Field(alias="Training_Characteristics")
     metrics: Metrics = Field(alias="Metrics")
     info: Info = Field(alias="Info")
+    implementation: Link[Implementation]
 
 
 class EnrichedModel(pydantic.BaseModel):

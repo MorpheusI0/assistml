@@ -17,24 +17,36 @@ class ImplementationProcessor:
     def __init__(self, mlsea: MLSeaRepository):
         self._mlsea = mlsea
 
-    async def process_all(self, task: Task, recursive: bool = False, head: int = None):
+    async def process_all(self, task: Task, recursive: bool = False, head: int = None, offset_id: int = 0):
         openml_task_id = int(task.mlsea_uri.split('/')[-1])
-        task_implementations_df = self._mlsea.retrieve_all_implementations_from_openml_for_task(openml_task_id)
-        print(task_implementations_df.head())
+        count = 0
+        while True:
+            task_implementations_df = self._mlsea.retrieve_all_implementations_from_openml_for_task(openml_task_id, batch_size=100, offset_id=offset_id)
+            if task_implementations_df.empty:
+                break
 
-        if head is not None:
-            task_implementations_df = task_implementations_df.head(head)
+            if head is not None:
+                task_implementations_df = task_implementations_df.head(head)
 
-        for implementation_dto in task_implementations_df.itertuples(index=False):
-            implementation_dto = ImplementationDto(*implementation_dto)
+            for implementation_dto in task_implementations_df.itertuples(index=False):
+                implementation_dto = ImplementationDto(*implementation_dto)
 
-            software_df = self._mlsea.retrieve_dependencies_from_openml_for_implementation(
-                implementation_dto.openml_flow_id)
-            software_dtos = [SoftwareDto(*software_dto) for software_dto in software_df.itertuples(index=False)]
+                print(f"Processing implementation {implementation_dto.openml_flow_id}")
 
-            implementation: Implementation = await self._ensure_implementation_exists(implementation_dto, software_dtos)
-            task.related_implementations.append(implementation)
-        await task.save(link_rule=WriteRules.DO_NOTHING)
+                software_df = self._mlsea.retrieve_dependencies_from_openml_for_implementation(
+                    implementation_dto.openml_flow_id)
+                software_dtos = [SoftwareDto(*software_dto) for software_dto in software_df.itertuples(index=False)]
+
+                implementation: Implementation = await self._ensure_implementation_exists(implementation_dto, software_dtos)
+                task.related_implementations.append(implementation)
+
+                count += 1
+                offset_id = implementation_dto.openml_flow_id
+
+            await task.save(link_rule=WriteRules.DO_NOTHING)
+
+            if head is not None and count >= head:
+                break
 
     async def find_or_create(self, openml_implementation_id: int) -> Implementation:
         implementation = await Implementation.find_one(Implementation.mlsea_uri == f"{IMPLEMENTATION_BASE_URI}{openml_implementation_id}")
