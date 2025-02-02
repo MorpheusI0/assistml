@@ -129,6 +129,8 @@ class DataProfiler():
     # Retun how big is the imbalance of feature (ratio between most popular and least popular)
     def imbalance_test(self, df, col_name):
         res = df[col_name].value_counts().tolist()
+        if min(res) == 0:
+            return math.inf
         return max(res) / min(res)
 
     # Chi-square Test of Independence using scipy.stats.chi2_contingency
