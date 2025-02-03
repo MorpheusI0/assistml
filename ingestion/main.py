@@ -1,17 +1,14 @@
 import asyncio
 
-from mlsea import MLSeaRepository
 from common.data import ObjectDocumentMapper
-from processing.dataset import DatasetProcessor
+from processing.dataset import process_all_datasets
 
 
 async def main():
-    mlsea = MLSeaRepository()
     odm = ObjectDocumentMapper()
     await odm.connect()
 
-    dataset_processor = DatasetProcessor(mlsea)
-    await dataset_processor.process(recursive=True, head=10)
+    await process_all_datasets(recursive=True, head=10)
 
 
 if __name__ == '__main__':

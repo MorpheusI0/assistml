@@ -1,79 +1,48 @@
-from typing import Dict, Union, Optional, Any
+from typing import Dict, Union, Optional, Any, List
 
-import pydantic
 from beanie import Document, Link
-from pydantic import Field
+from pydantic import Field, BaseModel
 
 from .implementation import Implementation
 from .task import Task
 
 
-class DataMetaData(pydantic.BaseModel):
-    rows: int
-    classification_type: str
-    classification_output: str
-    class_variable: str
-    categorical_colummns: int
-    numeric_columns: int
-    datetime_columns: int
-    text_columns: int
-    list_of_columns_used: list[str]
-    dataset_name: str
-    cols_pre_preprocessing: int
-    cols_afr_preprocessing: int
-
-
-class Dependencies(pydantic.BaseModel):
-    nr_dependencies: int
-    libraries: Dict[str, str] = Field(alias="Libraries")
-
-
-class TrainingCharacteristics(pydantic.BaseModel):
-    hyper_parameters: Dict[str, Any] = Field(alias="Hyper_Parameters", default_factory=dict)
-    test_size: float
-    seed_value: int
-    cross_validation_folds: int
-    sampling: str
-    algorithm_implementation: str
-    language: str
-    language_version: str
-    cores: str
-    ghZ: str
-    deployment: str
-    implementation: str
-    dependencies: Dependencies = Field(alias="Dependencies")
-    platform: str
-
-
-class Metrics(pydantic.BaseModel):
-    accuracy: float
-    error: float
-    precision: float
-    recall: float
-    fscore: float
-    cross_validation_training_time: float
-    test_time_per_unit: float
-    confusion_matrix_rowstrue_colspred: list[int]
-    test_file: str
-    training_time: float
-
-
-class Info(pydantic.BaseModel):
-    mlsea_uri: Optional[str] = None
+class Parameter(BaseModel):
     name: str
-    spec_version: str
-    use_case: str
-
-
-class BaseModel(pydantic.BaseModel):
-    #data_meta_data: DataMetaData = Field(alias="Data_Meta_Data")
-    training_characteristics: TrainingCharacteristics = Field(alias="Training_Characteristics")
-    metrics: Metrics = Field(alias="Metrics")
-    info: Info = Field(alias="Info")
+    data_type: str
     implementation: Link[Implementation]
+    value: Any
+    default_value: Optional[Any] = None
 
 
-class EnrichedModel(pydantic.BaseModel):
+class Metrics(BaseModel):
+    area_under_curve: Optional[float] = None
+    average_cost: Optional[float] = None
+    f_measure: Optional[float] = None
+    kappa: Optional[float] = None
+    kononenko_branko_relative_information_score: Optional[float] = None
+    mean_absolute_error: Optional[float] = None
+    mean_prior_absolute_error: Optional[float] = None
+    precision: Optional[float] = None
+    accuracy: Optional[float] = None
+    prior_entropy: Optional[float] = None
+    recall: Optional[float] = None
+    relative_absolute_error: Optional[float] = None
+    root_mean_prior_squared_error: Optional[float] = None
+    root_mean_squared_error: Optional[float] = None
+    root_relative_squared_error: Optional[float] = None
+    total_cost: Optional[float] = None
+    training_time: Optional[float] = None
+
+
+class Setup(BaseModel):
+    hyper_parameters: List[Parameter]# = Field(alias="Hyper_Parameters")
+    setup_string: Optional[str] = None
+    implementation: Link[Implementation]
+    task: Link[Task]
+
+
+class EnrichedModel(BaseModel):
     fam_name: str
     rows: str
     columns_change: str
@@ -98,9 +67,11 @@ class EnrichedModel(pydantic.BaseModel):
 
 
 class Model(Document):
-    base_model: BaseModel = Field(alias="Base_Model")
-    enriched_model: Optional[EnrichedModel] = Field(alias="Enriched_Model")
-    task: Link[Task]
+    mlsea_uri: Optional[str] = None
+    setup: Setup = Field(alias="Setup")
+    metrics: Metrics = Field(alias="Metrics")
+    enriched_model: Optional[EnrichedModel] = Field(alias="Enriched_Model", default=None)
+
 
     class Settings:
         name = "models"

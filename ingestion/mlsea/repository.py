@@ -204,3 +204,5 @@ class MLSeaRepository:
         if elapsed_time < 60 / self._rate_limit:
             time.sleep(60 / self._rate_limit - elapsed_time)
         self._last_request_time = time.time()
+
+mlsea_repository = MLSeaRepository()
