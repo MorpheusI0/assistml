@@ -11,10 +11,8 @@ services:
     restart: unless-stopped
     ports:
       - "27017:27017"
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=admin
-      - MONGO_INITDB_ROOT_PASSWORD=admin
-      - MONGO_INITDB_DATABASE=assistml
+    env_file:
+      - frontend/dashboard-docker.env
     volumes:
       - "mongodb_data:/data/db"
       - "./repository/:/repository/:ro"

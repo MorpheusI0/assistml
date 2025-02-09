@@ -3,12 +3,10 @@ import os
 
 load_dotenv()
 
+def _parse_bool(value):
+    return str(value).lower() in ['true', '1', 't', 'y', 'yes']
 
 class Config:
-    @staticmethod
-    def _parse_bool(value):
-        return str(value).lower() in ['true', '1', 't', 'y', 'yes']
-
     HOST = os.getenv("HOST", "0.0.0.0")
     PORT = os.getenv("PORT", 8080)
     DEBUG = _parse_bool(os.getenv("DEBUG", True))
@@ -28,5 +26,4 @@ class Config:
     assert MONGO_PORT is not None, "MONGO_PORT must be set"
     assert MONGO_USER is not None, "MONGO_USER must be set"
     assert MONGO_PASS is not None, "MONGO_PASS must be set"
-
 

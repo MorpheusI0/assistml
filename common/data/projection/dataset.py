@@ -1,28 +1,28 @@
 from beanie import PydanticObjectId
-from pydantic import BaseModel, Field
 
 from common.data.dataset import Info, Features
+from common.data.utils import CustomBaseModel
 
 
-class EmptyView(BaseModel):
-    id: PydanticObjectId = Field(alias="_id")
+class EmptyView(CustomBaseModel):
+    id: PydanticObjectId
 
     class Settings:
         projection = {"id": "$_id"}
 
 
-class InfoView(BaseModel):
+class InfoView(CustomBaseModel):
     id: PydanticObjectId
-    info: Info = Field(alias="Info")
+    info: Info
 
     class Settings:
-        projection = {"id": "$_id", "Info": 1}
+        projection = {"id": "$_id", "info": 1}
 
 
-class DatasetNameAndFeaturesView(BaseModel):
+class DatasetNameAndFeaturesView(CustomBaseModel):
     id: PydanticObjectId
     dataset_name: str
-    features: Features = Field(alias="Features")
+    features: Features
 
     class Settings:
-        projection = {"id": "$_id", "dataset_name": "$Info.dataset_name", "Features": 1}
+        projection = {"id": "$_id", "dataset_name": "$info.datasetName", "features": 1}

@@ -1,10 +1,11 @@
 from flash import Flash, Input, Output, State
-from quart import g
+from quart import g, current_app
 
 from assistml_dashboard.client import BackendClient
 from assistml_dashboard.components.report import create_report_layout, create_suggested_feature_layout
 from assistml_dashboard.components.sidebar.classifier_preferences_callbacks import register_classifier_preferences_callbacks
 from assistml_dashboard.components.sidebar.dataset_characteristics_callbacks import register_dataset_characteristics_callbacks
+from common.dto import AnalyseDatasetResponseDto
 
 
 def register_sidebar_callbacks(app: Flash):
@@ -41,20 +42,23 @@ def register_sidebar_callbacks(app: Flash):
                               feature_type_list, csv_filename, classification_type, accuracy_slider, precision_slider,
                               recall_slider, trtime_slider):
         print(type(submit_btn_clicks))
+        response: AnalyseDatasetResponseDto
         response, error = await backend.analyse_dataset(class_label, class_feature_type, feature_type_list)
         if response is None:
             return error, "Feature suggestion not possible", ""
 
         if response.data_profile is None:
-            return response.db_write_status, "Feature suggestion not possible", ""
+            return response.db_write_status.status, "Feature suggestion not possible", ""
+
+        current_app.logger.debug(f"Dataset_id: {response.db_write_status.dataset_id}")
 
         suggested_features = create_suggested_feature_layout(response.data_profile, class_feature_type)
         report, error = await backend.report(class_feature_type, feature_type_list, classification_type, accuracy_slider,
                                        precision_slider, recall_slider, trtime_slider, csv_filename)
 
         if report is None:
-            return response.db_write_status, suggested_features, "Error in execution of report.py"
+            return response.db_write_status.status, suggested_features, f"Error while profiling the dataset: {error}"
 
         report_layout = await create_report_layout(report, error)
 
-        return response.db_write_status, suggested_features, report_layout
+        return response.db_write_status.status, suggested_features, report_layout

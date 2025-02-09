@@ -1,5 +1,9 @@
+from beanie import PydanticObjectId
 from pydantic import BaseModel
 
 
-class NumberView(BaseModel):
-    number: int
+class EmptyView(BaseModel):
+    id: PydanticObjectId
+
+    class Settings:
+        projection = {"id": "$_id"}
