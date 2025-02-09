@@ -10,7 +10,7 @@ from common.data import ObjectDocumentMapper
 from config import Config
 
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.getLevelName(Config.LOG_LEVEL), format='%(asctime)s - %(levelname)s - %(message)s')
 
 external_stylesheets = ["https://cdnjs.cloudflare.com/ajax/libs/normalize/7.0.0/normalize.min.css",
                         "https://cdnjs.cloudflare.com/ajax/libs/skeleton/2.0.4/skeleton.min.css",

@@ -11,6 +11,7 @@ class Config(object):
     PORT = os.getenv("PORT", 8050)
     DEBUG = _parse_bool(os.getenv("DEBUG", True))
     VERBOSE = _parse_bool(os.getenv("VERBOSE", True))
+    LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
     BACKEND_BASE_URL = os.getenv("BACKEND_BASE_URL", "http://localhost:8080")
     WORKING_DIR = os.getenv("WORKING_DIR", "~/.assistml/dashboard")
