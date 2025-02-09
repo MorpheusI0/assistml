@@ -13,6 +13,7 @@ class BackendClient:
     def __init__(self, config: dict):
         self.base_url = config['BACKEND_BASE_URL']
         self.working_dir = config['WORKING_DIR']
+        self.timeout = None if config['DEBUG'] else 60
 
     async def analyse_dataset(self, class_label: str, class_feature_type: str, feature_type_list: str) -> (Optional[AnalyseDatasetResponseDto], Optional[str]):
         url = f"{self.base_url}/analyse-dataset"
@@ -27,7 +28,7 @@ class BackendClient:
             class_feature_type=class_feature_type,
             feature_type_list=feature_type_list
         )
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
             with open(os.path.join(upload_dir, file), "rb") as dataset_uploaded:
                 file_dict = {
                     "json": (None, payload.model_dump_json(), "application/json"),
@@ -61,8 +62,8 @@ class BackendClient:
             trtime_range=trtime_slider,
             dataset_name=csv_filename
         )
-        async with httpx.AsyncClient() as client:
             response = await client.post(url=url, data=query_dto.model_dump(),
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
                                      headers={'Content-Type': 'application/json'})
 
             if response.status_code != 200:
