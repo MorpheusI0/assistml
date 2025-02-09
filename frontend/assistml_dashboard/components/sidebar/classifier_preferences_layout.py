@@ -32,8 +32,9 @@ async def _retrieve_default_classification_type():
     ).to_list()
 
 async def create_classifier_preferences():
-    default_option = await _retrieve_default_classification_type()
-    default_option_type = default_option[0].type
+    #default_option = await _retrieve_default_classification_type()
+    #default_option_type = default_option[0].type
+    default_option_type = None
     classification_type = html.Div(
         [
             dbc.Label("Output Type",
