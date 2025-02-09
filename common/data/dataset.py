@@ -2,7 +2,10 @@ from enum import Enum
 from typing import Dict, List, ForwardRef, Optional
 
 from beanie import Document, BackLink
-from pydantic import BaseModel, Field
+from pydantic import Field
+from pymongo import IndexModel
+
+from common.data.utils import CustomBaseModel, alias_generator
 
 Task = ForwardRef("Task")
 
@@ -12,7 +15,7 @@ class TargetFeatureType(str, Enum):
     MULTICLASS = "multiclass"
     REGRESSION = "regression"
 
-class Info(BaseModel):
+class Info(CustomBaseModel):
     mlsea_uri: Optional[str] = None
     dataset_name: str
     target_label: str
@@ -29,7 +32,7 @@ class Info(BaseModel):
     analysis_time: float
 
 
-class Quantiles(BaseModel):
+class Quantiles(CustomBaseModel):
     q0: float
     q1: float
     q2: float
@@ -37,49 +40,40 @@ class Quantiles(BaseModel):
     q4: float
     iqr: float
 
-    class Config:
-        ser_json_inf_nan = 'constants'
 
-
-class Outliers(BaseModel):
+class Outliers(CustomBaseModel):
     number: int
-    actual_values: list[float] = Field(alias="Actual_Values")
+    actual_values: list[float]
 
 
-class Distribution(BaseModel):
+class Distribution(CustomBaseModel):
     normal: bool
     exponential: bool
 
 
-class NumericalFeature(BaseModel):
+class NumericalFeature(CustomBaseModel):
     monotonous_filtering: float
     anova_f1: float
     anova_pvalue: float
     mutual_info: Optional[float] = None  # Does not exist for regression
     missing_values: int
-    min_orderm: float = Field(allow_inf_nan=True)
-    max_orderm: float = Field(allow_inf_nan=True)
-    quartiles: Quantiles = Field(alias="Quartiles")
-    outliers: Outliers = Field(alias="Outliers")
-    distribution: Distribution = Field(alias="Distribution")
-
-    class Config:
-        ser_json_inf_nan = 'constants'
+    min_orderm: float
+    max_orderm: float
+    quartiles: Quantiles
+    outliers: Outliers
+    distribution: Distribution
 
 
-class CategoricalFeature(BaseModel):
+class CategoricalFeature(CustomBaseModel):
     missing_values: int
     nr_levels: int
-    levels: Dict[str, str] = Field(alias="Levels")
+    levels: Dict[str, str]
     imbalance: float
     mutual_info: float
     monotonous_filtering: float
 
-    class Config:
-        ser_json_inf_nan = 'constants'
 
-
-class UnstructuredFeature(BaseModel):
+class UnstructuredFeature(CustomBaseModel):
     missing_values: int
     vocab_size: int
     relative_vocab: float
@@ -88,30 +82,38 @@ class UnstructuredFeature(BaseModel):
     min_vocab: int
     max_vocab: int
 
-    class Config:
-        ser_json_inf_nan = 'constants'
 
-
-class DatetimeFeature(BaseModel):
+class DatetimeFeature(CustomBaseModel):
     pass
 
 
-class Features(BaseModel):
-    numerical_features: Optional[Dict[str, NumericalFeature]] = Field(alias="Numerical_Features", default=None)
-    categorical_features: Optional[Dict[str, CategoricalFeature]] = Field(alias="Categorical_Features", default=None)
-    unstructured_features: Optional[Dict[str, UnstructuredFeature]] = Field(alias="Unstructured_Features", default=None)
-    datetime_features: Optional[Dict[str, DatetimeFeature]] = Field(alias="Datetime_Features", default=None)
+class Features(CustomBaseModel):
+    numerical_features: Dict[str, NumericalFeature]
+    categorical_features: Dict[str, CategoricalFeature]
+    unstructured_features: Dict[str, UnstructuredFeature]
+    datetime_features: Dict[str, DatetimeFeature]
 
 
 class Dataset(Document):
-    info: Info = Field(alias="Info")
-    features: Features = Field(alias="Features")
+    info: Info
+    features: Features
     tasks: List[BackLink[Task]] = Field(json_schema_extra={"original_field": "dataset"})
 
     class Settings:
         name = "datasets"
-        #keep_nulls = False
-        #validate_on_save = True. # breaks dataset insertion
+        keep_nulls = False
+        validate_on_save = True
+        indexes = [
+            IndexModel("info.mlseaUri", name="info.mlseaUri_", unique=True,
+                       partialFilterExpression={"info.mlseaUri": {"$exists": True}})
+        ]
+
+    class Config:
+        arbitrary_types_allowed = True
+        populate_by_name = True
+        use_enum_values = True
+        alias_generator = alias_generator
+
 
 #from .task import Task
 #Dataset.update_forward_refs()

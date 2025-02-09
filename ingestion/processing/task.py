@@ -43,7 +43,11 @@ async def process_all(dataset: Dataset, recursive: bool = False, head: int = Non
 
 
 async def _ensure_task_exists(task_dto: TaskDto, dataset: Dataset):
-    task: Optional[Task] = await Task.find_one(Task.mlsea_uri == task_dto.mlsea_task_uri)
+    task: Optional[Task] = await Task.find_one(
+        #Task.mlsea_uri == task_dto.mlsea_task_uri,
+        {"mlseaUri": task_dto.mlsea_task_uri},
+        with_children=True
+    )
 
     if task is not None:
         return task

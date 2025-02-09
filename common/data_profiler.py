@@ -13,7 +13,7 @@ import time
 import nltk
 from nltk.corpus import stopwords
 
-from data.dataset import TargetFeatureType
+from common.data.dataset import TargetFeatureType
 
 nltk.download('stopwords')
 nltk.download('punkt')
@@ -53,11 +53,11 @@ class DataProfiler():
         self.datetime_features = []
         self.unstructured_features = []
         self.collection_datasets = ''
-        self.json_data["Info"] = {}
-        self.json_data["Features"] = {}
-        self.json_data["Info"]["dataset_name"] = self.dataset_name
-        self.json_data["Info"]["target_label"] = self.class_label
-        self.json_data["Info"]["target_feature_type"] = self.target_feature_type
+        self.json_data["info"] = {}
+        self.json_data["features"] = {}
+        self.json_data["info"]["datasetName"] = self.dataset_name
+        self.json_data["info"]["targetLabel"] = self.class_label
+        self.json_data["info"]["targetFeatureType"] = self.target_feature_type
 
     # Return a new dataset after dropping missing values. And return Number of missing values in each column.
     def handle_missing_values(self, df: pd.DataFrame):
@@ -310,11 +310,11 @@ class DataProfiler():
         if not self.class_label in self.column_names_list:
             return "processing failed"
         # handle_missing_values
-        self.json_data["Info"]["observations"] = self.df.shape[0]
+        self.json_data["info"]["observations"] = self.df.shape[0]
         (self.df, self.miss_value, self.drop_cols) = self.handle_missing_values(self.df)
-        self.json_data["Info"]["analyzed_observations"] = self.df.shape[0]
+        self.json_data["info"]["analyzedObservations"] = self.df.shape[0]
         self.nr_total_features = self.df.shape[1] - 1  # Do not count class label
-        self.json_data["Info"]["features"] = self.nr_total_features
+        self.json_data["info"]["features"] = self.nr_total_features
         return ("processing success")
 
     # Identify indices of numerical, categorical features
@@ -353,19 +353,19 @@ class DataProfiler():
         nr_categorical_features = len(self.categorical_features)
         nr_datetime_features = len(self.datetime_features)
         nr_unstructured_features = len(self.unstructured_features)
-        self.json_data["Info"]["numeric_ratio"] = float("{:.2f}".format(nr_numeric_features / self.nr_total_features))
-        self.json_data["Info"]["categorical_ratio"] = float(
+        self.json_data["info"]["numericRatio"] = float("{:.2f}".format(nr_numeric_features / self.nr_total_features))
+        self.json_data["info"]["categoricalRatio"] = float(
             "{:.2f}".format(nr_categorical_features / self.nr_total_features))
-        self.json_data["Info"]["datetime_ratio"] = float("{:.2f}".format(nr_datetime_features / self.nr_total_features))
-        self.json_data["Info"]["unstructured_ratio"] = float("{:.2f}".format(nr_unstructured_features / self.nr_total_features))
+        self.json_data["info"]["datetimeRatio"] = float("{:.2f}".format(nr_datetime_features / self.nr_total_features))
+        self.json_data["info"]["unstructuredRatio"] = float("{:.2f}".format(nr_unstructured_features / self.nr_total_features))
 
     # Calculate parameters for numerical features and add it to json
     def analyse_numerical_features(self):
         print("Analysing numerical features")
         # Calculate parameters for numerical features and add it to json
-        self.json_data["Features"]["Numerical_Features"] = {}
-        self.json_data["Info"]["analyzed_features"] = []
-        self.json_data["Info"]["discarded_features"] = []
+        self.json_data["features"]["numericalFeatures"] = {}
+        self.json_data["info"]["analyzedFeatures"] = []
+        self.json_data["info"]["discardedFeatures"] = []
         feature = ""
         numericalFeatures = pd.DataFrame()
         for i in range(len(self.numerical_features)):
@@ -386,58 +386,58 @@ class DataProfiler():
             for column_nr in self.numerical_features:
                 feature = self.column_names_list[column_nr]
                 if (feature not in self.drop_cols):
-                    self.json_data["Info"]["analyzed_features"].append(feature)
-                    self.json_data["Features"]["Numerical_Features"][feature] = {}
+                    self.json_data["info"]["analyzedFeatures"].append(feature)
+                    self.json_data["features"]["numericalFeatures"][feature] = {}
                     # Implement the monotonous filtering
-                    self.json_data["Features"]["Numerical_Features"][feature]['monotonous_filtering'] = self.monotonous_filtering_numerical(self.df, feature)
+                    self.json_data["features"]["numericalFeatures"][feature]['monotonousFiltering'] = self.monotonous_filtering_numerical(self.df, feature)
                     # Assign the f1 value from the anova:
-                    self.json_data["Features"]["Numerical_Features"][feature]['anova_f1'] = anova_f1[counter]
+                    self.json_data["features"]["numericalFeatures"][feature]['anovaF1'] = anova_f1[counter]
                     # Assign the p value from the anova:
-                    self.json_data["Features"]["Numerical_Features"][feature]['anova_pvalue'] = anova_pvalue[counter]
+                    self.json_data["features"]["numericalFeatures"][feature]['anovaPvalue'] = anova_pvalue[counter]
                     # Assign the mutual information for the feature
                     if mi is not None:
-                        self.json_data["Features"]["Numerical_Features"][feature]['mutual_info'] = mi[counter]
+                        self.json_data["features"]["numericalFeatures"][feature]['mutualInfo'] = mi[counter]
                     counter = counter + 1
                     # Calculate missing values
-                    self.json_data["Features"]["Numerical_Features"][feature]['missing_values'] = self.miss_value[
+                    self.json_data["features"]["numericalFeatures"][feature]['missingValues'] = self.miss_value[
                         feature]
                     # Calculate min order and max order
-                    self.json_data["Features"]["Numerical_Features"][feature]['min_orderm'] = self.min_orderm_cal(
+                    self.json_data["features"]["numericalFeatures"][feature]['minOrderm'] = self.min_orderm_cal(
                         self.df, feature)
-                    self.json_data["Features"]["Numerical_Features"][feature]['max_orderm'] = self.max_orderm_cal(
+                    self.json_data["features"]["numericalFeatures"][feature]['maxOrderm'] = self.max_orderm_cal(
                         self.df, feature)
                     # Calculate the correlation between selected feature and target feature.
-                    #if 'numeric' in self.target_feature_type or 'Numeric' in self.target_feature_type:
-                    #    self.json_data["Features"]["Numerical_Features"][feature]['correlation'] = self.corr_cal(self.csv_data, feature)
-                    #elif 'categoric' in self.target_feature_type or 'Categoric' in self.target_feature_type or 'binary' in self.target_feature_type or 'Binary' in self.target_feature_type:
+                    #if 'numeric' in self.target_feature_type or 'numeric' in self.target_feature_type:
+                    #    self.json_data["features"]["numericalFeatures"][feature]['correlation'] = self.corr_cal(self.csv_data, feature)
+                    #elif 'categoric' in self.target_feature_type or 'categoric' in self.target_feature_type or 'binary' in self.target_feature_type or 'binary' in self.target_feature_type:
                     #    (pval, chisq_correlated) = self.chisq_correlated_cal(self.csv_data, feature)
-                    #    self.json_data["Features"]["Numerical_Features"][feature]['Correlation'] = {}
-                    #    self.json_data["Features"]["Numerical_Features"][feature]['Correlation']['chisq_correlated'] = chisq_correlated
-                    #    self.json_data["Features"]["Numerical_Features"][feature]['Correlation']['p_val'] = pval
+                    #    self.json_data["features"]["numericalFeatures"][feature]['correlation'] = {}
+                    #    self.json_data["features"]["numericalFeatures"][feature]['correlation']['chisqCorrelated'] = chisq_correlated
+                    #    self.json_data["features"]["numericalFeatures"][feature]['correlation']['pVal'] = pval
                     # Calculate IQR and Quartiles
                     q0, q1, q2, q3, q4, iqr = self.iqr_cal(self.df, feature)
-                    self.json_data["Features"]["Numerical_Features"][feature]['Quartiles'] = {}
-                    self.json_data["Features"]["Numerical_Features"][feature]['Quartiles']['q0'] = q0
-                    self.json_data["Features"]["Numerical_Features"][feature]['Quartiles']['q1'] = q1
-                    self.json_data["Features"]["Numerical_Features"][feature]['Quartiles']['q2'] = q2
-                    self.json_data["Features"]["Numerical_Features"][feature]['Quartiles']['q3'] = q3
-                    self.json_data["Features"]["Numerical_Features"][feature]['Quartiles']['q4'] = q4
-                    self.json_data["Features"]["Numerical_Features"][feature]['Quartiles']['iqr'] = iqr
+                    self.json_data["features"]["numericalFeatures"][feature]['quartiles'] = {}
+                    self.json_data["features"]["numericalFeatures"][feature]['quartiles']['q0'] = q0
+                    self.json_data["features"]["numericalFeatures"][feature]['quartiles']['q1'] = q1
+                    self.json_data["features"]["numericalFeatures"][feature]['quartiles']['q2'] = q2
+                    self.json_data["features"]["numericalFeatures"][feature]['quartiles']['q3'] = q3
+                    self.json_data["features"]["numericalFeatures"][feature]['quartiles']['q4'] = q4
+                    self.json_data["features"]["numericalFeatures"][feature]['quartiles']['iqr'] = iqr
                     # Calculate outlier info
                     outlier_list = self.detect_outlier(self.df, feature)
-                    self.json_data["Features"]["Numerical_Features"][feature]['Outliers'] = {}
-                    self.json_data["Features"]["Numerical_Features"][feature]['Outliers']['number'] = len(outlier_list)
-                    self.json_data["Features"]["Numerical_Features"][feature]['Outliers'][
-                        'Actual_Values'] = outlier_list
+                    self.json_data["features"]["numericalFeatures"][feature]['outliers'] = {}
+                    self.json_data["features"]["numericalFeatures"][feature]['outliers']['number'] = len(outlier_list)
+                    self.json_data["features"]["numericalFeatures"][feature]['outliers'][
+                        'actualValues'] = outlier_list
                     # Distribution Check
-                    self.json_data["Features"]["Numerical_Features"][feature]['Distribution'] = {}
+                    self.json_data["features"]["numericalFeatures"][feature]['distribution'] = {}
                     normal_distrn_bool = self.shapiro_test_normality(self.df, feature)
-                    self.json_data["Features"]["Numerical_Features"][feature]['Distribution']['normal'] = normal_distrn_bool
-                    self.json_data["Features"]["Numerical_Features"][feature]['Distribution']['exponential'] = self.ks_test_exponential(self.df, feature)
+                    self.json_data["features"]["numericalFeatures"][feature]['distribution']['normal'] = normal_distrn_bool
+                    self.json_data["features"]["numericalFeatures"][feature]['distribution']['exponential'] = self.ks_test_exponential(self.df, feature)
                     if normal_distrn_bool:
-                        self.json_data["Features"]["Numerical_Features"][feature]['Distribution']['skewness'] = stats.skew(self.df[feature])
+                        self.json_data["features"]["numericalFeatures"][feature]['distribution']['skewness'] = stats.skew(self.df[feature])
                 else:
-                    self.json_data["Info"]["discarded_features"].append(feature)
+                    self.json_data["info"]["discardedFeatures"].append(feature)
                     print(feature + " is dropped for having missing values more than 1/4 the whole size of the dataset")
             return ("analysis successfully completed")
         except TypeError:
@@ -449,7 +449,7 @@ class DataProfiler():
     def analyse_categorical_features(self):
         print("Analysing categorical features")
         # Calculate parameters for categorical features and add it to json
-        self.json_data["Features"]["Categorical_Features"] = {}
+        self.json_data["features"]["categoricalFeatures"] = {}
         categorical_features = pd.DataFrame()
         for i in range(len(self.categorical_features)):
             if self.df_complete.columns[self.categorical_features[i]] in self.df.columns:
@@ -461,10 +461,10 @@ class DataProfiler():
         for column_nr in self.categorical_features:
             feature = self.column_names_list[column_nr]
             if feature not in self.drop_cols:
-                self.json_data["Info"]["analyzed_features"].append(feature)
-                self.json_data["Features"]["Categorical_Features"][feature] = {}
+                self.json_data["info"]["analyzedFeatures"].append(feature)
+                self.json_data["features"]["categoricalFeatures"][feature] = {}
                 # Calculate missing values
-                self.json_data["Features"]["Categorical_Features"][feature]['missing_values'] = self.miss_value[feature]
+                self.json_data["features"]["categoricalFeatures"][feature]['missingValues'] = self.miss_value[feature]
                 # Identify levels
                 (index_list, val_list, num_levels) = self.freq_counts(self.df, feature)
                 levels = {}
@@ -473,46 +473,46 @@ class DataProfiler():
                     if "." in str(index_list[i]):
                         index_list[i] = str(index_list[i]).replace(".", "")
                     levels[str(index_list[i])] = str(val_list[i])
-                self.json_data["Features"]["Categorical_Features"][feature]['nr_levels'] = num_levels
-                self.json_data["Features"]["Categorical_Features"][feature]['Levels'] = levels
+                self.json_data["features"]["categoricalFeatures"][feature]['nrLevels'] = num_levels
+                self.json_data["features"]["categoricalFeatures"][feature]['levels'] = levels
                 # Calculate imbalance
                 imbalance = self.imbalance_test(self.df, feature)
-                self.json_data["Features"]["Categorical_Features"][feature]['imbalance'] = imbalance
+                self.json_data["features"]["categoricalFeatures"][feature]['imbalance'] = imbalance
                 # Assign the mutual information for the feature
-                self.json_data["Features"]["Categorical_Features"][feature]['mutual_info'] = mi[counter]
+                self.json_data["features"]["categoricalFeatures"][feature]['mutualInfo'] = mi[counter]
                 counter = counter + 1
                 # Calculate correlation between selected feature and target feature.
                 #(pval, chisq_correlated) = self.chisq_correlated_cal(self.csv_data, feature)
-                #self.json_data["Features"]["Categorical_Features"][feature]['Correlation'] = {}
-                #self.json_data["Features"]["Categorical_Features"][feature]['Correlation']['p_val'] = pval
-                #self.json_data["Features"]["Categorical_Features"][feature]['Correlation']['chisq_correlated'] = chisq_correlated
+                #self.json_data["features"]["categoricalFeatures"][feature]['correlation'] = {}
+                #self.json_data["features"]["categoricalFeatures"][feature]['correlation']['pVal'] = pval
+                #self.json_data["features"]["categoricalFeatures"][feature]['correlation']['chisqCorrelated'] = chisq_correlated
                 # Implement the monotonous filtering
-                self.json_data["Features"]["Categorical_Features"][feature]['monotonous_filtering'] = self.monotonous_filtering_categorical(self.df, feature)
+                self.json_data["features"]["categoricalFeatures"][feature]['monotonousFiltering'] = self.monotonous_filtering_categorical(self.df, feature)
             else:
-                self.json_data["Info"]["discarded_features"].append(feature)
+                self.json_data["info"]["discardedFeatures"].append(feature)
                 print(feature + " is dropped for having missing values more than 1/4 the whole size of the dataset")
 
     def analyse_unstructured_features(self):
         print("Analysing text features")
-        self.json_data["Features"]["Unstructured_Features"] = {}
+        self.json_data["features"]["unstructuredFeatures"] = {}
         #features = self.unstructured_features
         for column_nr in self.unstructured_features:
             feature = self.column_names_list[column_nr]
             if feature not in self.drop_cols:
-                self.json_data["Info"]["analyzed_features"].append(feature)
-                self.json_data["Features"]["Unstructured_Features"][feature] = {}
+                self.json_data["info"]["analyzedFeatures"].append(feature)
+                self.json_data["features"]["unstructuredFeatures"][feature] = {}
                 # Calculate missing values
-                self.json_data["Features"]["Unstructured_Features"][feature]['missing_values'] = self.miss_value[feature]
+                self.json_data["features"]["unstructuredFeatures"][feature]['missingValues'] = self.miss_value[feature]
                 (vocab_size, relative_vocab, vocab_concentration, entropy, min_vocab, max_vocab) = self.text_statistics(self.df, feature)
-                self.json_data["Features"]["Unstructured_Features"][feature]["vocab_size"] = vocab_size
-                self.json_data["Features"]["Unstructured_Features"][feature]["relative_vocab"] = relative_vocab
-                self.json_data["Features"]["Unstructured_Features"][feature]["vocab_concentration"] = vocab_concentration
-                self.json_data["Features"]["Unstructured_Features"][feature]["entropy"] = entropy
-                self.json_data["Features"]["Unstructured_Features"][feature]["min_vocab"] = min_vocab
-                self.json_data["Features"]["Unstructured_Features"][feature]["max_vocab"] = max_vocab
+                self.json_data["features"]["unstructuredFeatures"][feature]["vocabSize"] = vocab_size
+                self.json_data["features"]["unstructuredFeatures"][feature]["relativeVocab"] = relative_vocab
+                self.json_data["features"]["unstructuredFeatures"][feature]["vocabConcentration"] = vocab_concentration
+                self.json_data["features"]["unstructuredFeatures"][feature]["entropy"] = entropy
+                self.json_data["features"]["unstructuredFeatures"][feature]["minVocab"] = min_vocab
+                self.json_data["features"]["unstructuredFeatures"][feature]["maxVocab"] = max_vocab
 
             else:
-                self.json_data["Info"]["discarded_features"].append(feature)
+                self.json_data["info"]["discardedFeatures"].append(feature)
                 print(feature + " is dropped for having missing values more than 1/4 the whole size of the dataset")
 
     def datetime_features_computations(self, df, col_name):
@@ -559,38 +559,38 @@ class DataProfiler():
 
     def analyse_datetime_features(self):
         print("Analysing datetime features")
-        self.json_data["Features"]["Datetime_Features"] = {}
-        dayparts = ['daypart_morning','daypart_afternoon','daypart_evening']
-        months = ['month_january','month_february','month_march','month_april','month_may','month_june','month_july','month_august','month_september','month_october','month_novmber','month_december']
-        days = ['week_monday','week_tuesday','week_wednesday','week_thursday','week_friday','week_saturday','week_sunday']
-        hours = ['hour_0','hour_1','hour_2','hour_3','hour_4','hour_5','hour_6','hour_7','hour_8','hour_9','hour_10','hour_11','hour_12','hour_13','hour_14','hour_15','hour_16','hour_17','hour_18','hour_19','hour_20','hour_21','hour_22','hour_23',]
+        self.json_data["features"]["datetimeFeatures"] = {}
+        dayparts = ['daypartMorning','daypartAfternoon','daypartEvening']
+        months = ['monthJanuary','monthFebruary','monthMarch','monthApril','monthMay','monthJune','monthJuly','monthAugust','monthSeptember','monthOctober','monthNovmber','monthDecember']
+        days = ['weekMonday','weekTuesday','weekWednesday','weekThursday','weekFriday','weekSaturday','weekSunday']
+        hours = ['hour0','hour1','hour2','hour3','hour4','hour5','hour6','hour7','hour8','hour9','hour10','hour11','hour12','hour13','hour14','hour15','hour16','hour17','hour18','hour19','hour20','hour21','hour22','hour23',]
         for column_nr in self.datetime_features:
             feature = self.column_names_list[column_nr]
             if feature not in self.drop_cols:
-                self.json_data["Info"]["analyzed_features"].append(feature)
-                self.json_data["Features"]["Datetime_Features"][feature] = {}
+                self.json_data["info"]["analyzedFeatures"].append(feature)
+                self.json_data["features"]["datetimeFeatures"][feature] = {}
                 # Calculate missing values
-                self.json_data["Features"]["Datetime_Features"][feature]['missing_values'] = self.miss_value[feature]
+                self.json_data["features"]["datetimeFeatures"][feature]['missingValues'] = self.miss_value[feature]
                 min_value, max_value, mean_value, median_value, daypart_frequencies, month_frequencies, weekday_frequencies, hour_frequencies = self.datetime_features_computations(self.df, feature)
-                self.json_data["Features"]["Datetime_Features"][feature]['min_delta'] = min_value
-                self.json_data["Features"]["Datetime_Features"][feature]['max_delta'] = max_value
-                self.json_data["Features"]["Datetime_Features"][feature]['mean_delta'] = mean_value
-                self.json_data["Features"]["Datetime_Features"][feature]['median_delta'] = median_value
+                self.json_data["features"]["datetimeFeatures"][feature]['minDelta'] = min_value
+                self.json_data["features"]["datetimeFeatures"][feature]['maxDelta'] = max_value
+                self.json_data["features"]["datetimeFeatures"][feature]['meanDelta'] = mean_value
+                self.json_data["features"]["datetimeFeatures"][feature]['medianDelta'] = median_value
                 for i, value in enumerate(daypart_frequencies):
-                    self.json_data["Features"]["Datetime_Features"][feature][
+                    self.json_data["features"]["datetimeFeatures"][feature][
                         dayparts[i]] = value
                 for i,value in enumerate(month_frequencies):
-                    self.json_data["Features"]["Datetime_Features"][feature][
+                    self.json_data["features"]["datetimeFeatures"][feature][
                         months[i]] = value
                 for i,value in enumerate(weekday_frequencies):
-                    self.json_data["Features"]["Datetime_Features"][feature][
+                    self.json_data["features"]["datetimeFeatures"][feature][
                         days[i]] = value
                 for i,value in enumerate(hour_frequencies):
-                    self.json_data["Features"]["Datetime_Features"][feature][
+                    self.json_data["features"]["datetimeFeatures"][feature][
                         hours[i]] = value
 
             else:
-                self.json_data["Info"]["discarded_features"].append(feature)
+                self.json_data["info"]["discardedFeatures"].append(feature)
                 print(feature + " is dropped for having missing values more than 1/4 the whole size of the dataset")
 
     @staticmethod
@@ -622,8 +622,8 @@ class DataProfiler():
         stop = time.time()
         analysis_time = stop - start
         print(analysis_time)
-        self.json_data["Info"]["analysis_time"] = analysis_time
-        #print(self.json_data["Info"]["analysis_time"])
+        self.json_data["info"]["analysisTime"] = analysis_time
+        #print(self.json_data["info"]["analysisTime"])
 
         return DataProfiler._convert_numpy_datatypes(self.json_data)
 

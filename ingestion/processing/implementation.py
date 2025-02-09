@@ -34,7 +34,11 @@ async def process_all_implementations(task: Task, recursive: bool = False, head:
             software_dtos = [SoftwareDto(*software_dto) for software_dto in software_df.itertuples(index=False)]
 
             implementation: Implementation = await _ensure_implementation_exists(implementation_dto, software_dtos)
-            task.related_implementations.append(implementation)
+            if task.related_implementations is None:
+                task.related_implementations = []
+
+            if implementation.id not in [impl.to_ref().id for impl in task.related_implementations]:
+                task.related_implementations.append(Link(implementation.to_ref(), Implementation))
 
             count += 1
             offset_id = implementation_dto.openml_flow_id
@@ -45,7 +49,10 @@ async def process_all_implementations(task: Task, recursive: bool = False, head:
             break
 
 async def find_or_create_implementation(openml_implementation_id: int) -> Implementation:
-    implementation = await Implementation.find_one(Implementation.mlsea_uri == f"{IMPLEMENTATION_BASE_URI}{openml_implementation_id}")
+    implementation = await Implementation.find_one(
+        #Implementation.mlsea_uri == f"{IMPLEMENTATION_BASE_URI}{openml_implementation_id}"
+        { "mlseaUri": f"{IMPLEMENTATION_BASE_URI}{openml_implementation_id}" }
+    )
     if implementation is not None:
         return implementation
 
@@ -59,7 +66,9 @@ async def find_or_create_implementation(openml_implementation_id: int) -> Implem
 
 async def _ensure_implementation_exists(implementation_dto: ImplementationDto, software_dtos: List[SoftwareDto]):
     implementation: Optional[Implementation] = await Implementation.find_one(
-        Implementation.mlsea_uri == implementation_dto.mlsea_implementation_uri)
+        #Implementation.mlsea_uri == implementation_dto.mlsea_implementation_uri
+        { "mlseaUri": implementation_dto.mlsea_implementation_uri }
+    )
 
     if implementation is not None:
         return implementation
@@ -92,7 +101,7 @@ async def _ensure_implementation_exists(implementation_dto: ImplementationDto, s
         mlsea_uri=implementation_dto.mlsea_implementation_uri,
         title=openml_flow.name,
         parameters=parameters,
-        components=components,
+        components=components if len(components.items()) > 0 else None,
         description=openml_flow.description,
         dependencies=dependencies
     )

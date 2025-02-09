@@ -4,7 +4,7 @@ import pandas as pd
 from sklearn.datasets import fetch_openml
 
 from common.data import Dataset
-from data.dataset import TargetFeatureType
+from common.data.dataset import TargetFeatureType, Info
 from mlsea import DatasetDto, mlsea_repository as mlsea
 from processing.task import process_all as process_all_tasks
 
@@ -38,7 +38,10 @@ async def process_all_datasets(dataset_ids: List[int] = None, recursive: bool = 
             break
 
 async def _ensure_dataset_exists(dataset_dto: DatasetDto):
-    dataset: Optional[Dataset] = await Dataset.find_one(Dataset.info.mlsea_uri == dataset_dto.mlsea_dataset_uri)
+    dataset: Optional[Dataset] = await Dataset.find_one(
+        #Dataset.info.mlsea_uri == dataset_dto.mlsea_dataset_uri
+        {"info.mlseaUri": dataset_dto.mlsea_dataset_uri}
+    )
 
     if dataset is not None:
         return dataset

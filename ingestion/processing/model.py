@@ -1,11 +1,11 @@
 from statistics import mean
-from typing import Optional
+from typing import Optional, Any, Dict
 
 import openml.runs
 from beanie import Link
 
 from common.data import Task, Model, Implementation
-from common.data.model import Setup, Parameter, Metrics
+from common.data.model import Setup, Parameter, Metric
 from mlsea import mlsea_repository as mlsea
 from mlsea.dtos import RunDto
 from processing.implementation import find_or_create_implementation
@@ -38,7 +38,10 @@ async def process_all_models(task: Task, recursive: bool = False, head: int = No
             break
 
 async def _ensure_model_exists(run_dto: RunDto, task: Task):
-    model: Optional[Model] = await Model.find_one(Model.mlsea_uri == run_dto.mlsea_run_uri)
+    model: Optional[Model] = await Model.find_one(
+        #Model.mlsea_uri == run_dto.mlsea_run_uri
+        {  "mlseaUri": run_dto.mlsea_run_uri }
+    )
 
     if model is not None:
         return model
@@ -88,17 +91,17 @@ async def _generate_setup(run_dto: RunDto, task: Task) -> Setup:
     )
 
 
-def _generate_metrics(run_dto: RunDto) -> Metrics:
-    optional_metric_names = {'training_time'}
+def _generate_metrics(run_dto: RunDto) -> Dict[str, Any]:
+    optional_metric_names = {Metric.TRAINING_TIME}
 
     # metrics taken from MLSea
     run_metrics_df = mlsea.retrieve_all_metrics_from_openml_for_run(run_dto.openml_run_id)
-    metric_names = list(set(Metrics.model_fields.keys()) - optional_metric_names)
-    run_metrics = Metrics(**{
-        metric_name: run_metrics_df.loc[run_metrics_df.measure_type == f"{EVALUATION_MEASURE_BASE_URI}{metric_name}", 'value'].values[0]
-        for metric_name in metric_names
-        if f"{EVALUATION_MEASURE_BASE_URI}{metric_name}" in run_metrics_df.measure_type.values
-    })
+    metrics = list(set([metric for metric  in Metric]) - optional_metric_names)
+    run_metrics: Dict[str, Any] = {
+        metric.key: run_metrics_df.loc[run_metrics_df.measure_type == f"{EVALUATION_MEASURE_BASE_URI}{metric.key}", 'value'].values[0]
+        for metric in metrics
+        if f"{EVALUATION_MEASURE_BASE_URI}{metric.key}" in run_metrics_df.measure_type.values
+    }
 
     # metrics taken from OpenML
     openml_run = openml.runs.get_run(run_dto.openml_run_id)
@@ -106,6 +109,6 @@ def _generate_metrics(run_dto: RunDto) -> Metrics:
     if fold_evaluations is not None:
         if "usercpu_time_millis" in fold_evaluations:
             usercpu_time_millis_lists = fold_evaluations['usercpu_time_millis'].values()
-            run_metrics.training_time = mean([mean(list(x.values())) for x in usercpu_time_millis_lists])
+            run_metrics[Metric.TRAINING_TIME.key] = mean([mean(list(x.values())) for x in usercpu_time_millis_lists])
 
     return run_metrics

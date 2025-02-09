@@ -1,14 +1,17 @@
 from typing import Optional
 
-from pydantic import BaseModel, Field
-
 from common.data.dataset import Info, Features
+from common.data.utils import CustomBaseModel
 
 
-class DatasetInfoDto(BaseModel):
-    info: Info = Field(alias="Info")
-    features: Features = Field(alias="Features")
+class DatasetInfoDto(CustomBaseModel):
+    info: Info
+    features: Features
 
-class AnalyseDatasetResponseDto(BaseModel):
+class DbWriteStatusDto(CustomBaseModel):
+    status: str
+    dataset_id: Optional[str] = None
+
+class AnalyseDatasetResponseDto(CustomBaseModel):
     data_profile: Optional[DatasetInfoDto] = None
-    db_write_status: str
+    db_write_status: DbWriteStatusDto

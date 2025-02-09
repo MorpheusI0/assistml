@@ -6,4 +6,12 @@ from .model import Model
 from .query import Query
 from .enriched_model import EnrichedModel
 
-__all__ = ['ObjectDocumentMapper', 'Dataset', 'Task', 'Implementation', 'Model', 'Query', 'EnrichedModel']  # TODO: remove enriched model
+__all__ = [
+    'ObjectDocumentMapper',
+    'Dataset',
+    'Task',
+    'Implementation',
+    'Model',
+    'Query',
+    'EnrichedModel',  # TODO: remove enriched model
+]
