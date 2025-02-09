@@ -5,33 +5,16 @@ import pymongo
 from quart import current_app
 
 
-def process_cmd_arg(cmd_argument, available_elements_db):
-    annotation_list = cmd_argument.replace(' ', '')
-    annotation_list = annotation_list.replace("'", '')
-    annotation_list = annotation_list.replace('"', '')
-    annotation_list = list(filter(None,annotation_list.strip('[]').split(',')))
-    if(len(annotation_list) != 0):
-        unrecognised_elements = []
-        for element in annotation_list:
-            if element not in available_elements_db:
-                unrecognised_elements.append(element)
-        for element in unrecognised_elements:
-            annotation_list.remove(element)
-    return annotation_list
+def _process_cmd_arg(cmd_argument, available_elements_db):
+    annotation_list = cmd_argument.replace(' ', '').replace("'", '').replace('"', '').strip('[]').split(',')
+    annotation_list = list(filter(None,annotation_list))
+
+    recognized_elements = [element for element in annotation_list if element in available_elements_db]
+    return recognized_elements
 
 
-def main():
+def process_and_save_data(feature_annotation_list: str = "", model_names_list: str = "", working_dir: str = ""):
 
-    # Database connection
-    myclient = pymongo.MongoClient(
-        host=current_app.config['MONGO_HOST'],
-        port=int(current_app.config['MONGO_PORT']),
-        username=current_app.config['MONGO_USER'],
-        password=current_app.config['MONGO_PASS']
-    )
-    dbname = myclient["assistml"]
-    collection_enriched = dbname["enriched_models"]
-    current_app.logger.info("Connected to database")
     data = pd.DataFrame(list(collection_enriched.find({},{"_id":0})))
     column_names_enriched = data.columns
     model_names_enriched = collection_enriched.distinct("model_name")
@@ -72,8 +55,3 @@ def main():
         os.makedirs(working_dir)
     output_file_path = os.path.join(working_dir, output_file_name)
     data_new.to_csv(output_file_path, index=False)
-
-
-
-if __name__ == "__main__":
-    main()

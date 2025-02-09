@@ -53,8 +53,13 @@ def register_sidebar_callbacks(app: Flash):
         current_app.logger.debug(f"Dataset_id: {response.db_write_status.dataset_id}")
 
         suggested_features = create_suggested_feature_layout(response.data_profile, class_feature_type)
-        report, error = await backend.report(class_feature_type, feature_type_list, classification_type, accuracy_slider,
-                                       precision_slider, recall_slider, trtime_slider, csv_filename)
+        preferences = {  # TODO: make this dynamic
+            "accuracy": accuracy_slider,
+            "precision": precision_slider,
+            "recall": recall_slider,
+            "training_time": trtime_slider
+        }
+        report, error = await backend.report(class_feature_type, feature_type_list, classification_type, preferences, response.db_write_status.dataset_id, csv_filename)
 
         if report is None:
             return response.db_write_status.status, suggested_features, f"Error while profiling the dataset: {error}"

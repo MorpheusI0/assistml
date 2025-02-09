@@ -1,21 +1,10 @@
-from beanie import PydanticObjectId
-from pydantic import BaseModel
+from common.data import Model, Implementation, Task
+from common.data.model import Setup
 
 
-class EnrichedModelMetricsView(BaseModel):
-    id: PydanticObjectId
-    accuracy: float
-    precision: float
-    recall: float
-    training_time_std: float
-    performance_score: float
+class FullyJoinedSetupView(Setup):
+    implementation: Implementation
+    task: Task
 
-    class Settings:
-        projection = {
-            "id": "$_id",
-            "accuracy": "$Model.Base_Model.Metrics.accuracy",
-            "precision": "$Model.Base_Model.Metrics.precision",
-            "recall": "$Model.Base_Model.Metrics.recall",
-            "training_time_std": "$Model.Enriched_Model.training_time_std",
-            "performance_score": "$Model.Enriched_Model.performance_score",
-        }
+class FullyJoinedModelView(Model):
+    setup: FullyJoinedSetupView

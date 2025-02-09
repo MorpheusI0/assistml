@@ -1,18 +1,16 @@
 import json
 import os
-from typing import Dict
-
-from quart import request, jsonify, current_app
-from pymongo import MongoClient
-from assistml.api import bp
-from modules.cluster import cluster_models
-from modules.query import query_usecase, query_data, query_preferences
 import time
 
+from pydantic import ValidationError
+from quart import request, jsonify, current_app
+
+from assistml.api import bp
+from assistml.model_recommender import generate_report
+from common.dto import ReportRequestDto
 from modules.rank import rank_models, shortlist_models
 from modules.results import generate_results
-from modules.reticulate import python_rules
-from modules.select import choose_models
+from modules.rules import rules
 
 
 @bp.route('/assistml', methods=['POST'])
@@ -82,112 +80,18 @@ async def assistml():
               schema:
                 type: object
         """
-    data = await request.get_json()
-
-    classif_type = data.get('classif_type')
-    classif_output = data.get('classif_output')
-    sem_types = data.get('sem_types')
-    accuracy_range = data.get('accuracy_range')
-    precision_range = data.get('precision_range')
-    recall_range = data.get('recall_range')
-    trtime_range = data.get('trtime_range')
-    dataset_name = data.get('dataset_name')
-    deployment = data.get('deployment')
-    lang = data.get('lang')
-    algofam = data.get('algofam')
-    platform = data.get('platform')
-    tuning_limit = data.get('tuning_limit')
-    implementation = data.get('implementation')
-
-    verbose = current_app.config['VERBOSE']
-    start_time = time.time()
-    current_app.logger.info("Connecting to mongo to get base models")
-
-    client = MongoClient(
-        host=current_app.config['MONGO_HOST'],
-        port=int(current_app.config['MONGO_PORT']),
-        username=current_app.config['MONGO_USER'],
-        password=current_app.config['MONGO_PASS']
-    )
-    queries_collection = client["assistml"]["queries"]
+    try:
+        data = await request.get_json()
+        report_request = ReportRequestDto(**data)
+    except ValidationError as e:
+        return jsonify({"error": f"Invalid request payload: {e}"}), 400
+    except Exception as e:
+        return jsonify({"error": f"An error occurred: {e}"}), 400
 
 
+    await generate_report(report_request)
 
-    current_app.logger.info(" ")
-
-    queryId = queries_collection.count_documents({}) + 1
-
-    current_app.logger.info("Forming query record with fields...")
-    current_app.logger.info(f"Query NR {queryId} Issued at {time.strftime('%Y%m%d-%H%M')} For classification {classif_type}")
-
-    query_record: Dict[str, str] = {
-        "number": queryId,
-        "madeat": time.strftime('%Y%m%d-%H%M'),
-        "classif_type": classif_type,
-        "classif_output": classif_output,
-        "dataset": dataset_name,
-        "semantic_types": sem_types,
-        "accuracy_range": accuracy_range,
-        "precision_range": precision_range,
-        "recall_range": recall_range,
-        "traintime_range": trtime_range
-    }
-
-    warnings = []
-    distrust_pts = 0
-
-    queries_collection.insert_one(query_record)
-
-    # remove non serializable objectId
-    query_record.pop('_id', None)
-
-    current_app.logger.info("#### QUERY FUNCTIONS ####")
-
-    if verbose:
-        current_app.logger.info("API call values")
-        current_app.logger.info(classif_type)
-        current_app.logger.info(classif_output)
-        current_app.logger.info(" ")
-
-    usecase_info = query_usecase(classif_type, classif_output)
-
-    data_feats = await query_data(semantic_types=sem_types, dataset_name=dataset_name)
-
-    if verbose:
-        current_app.logger.info(
-            f"Retrieved descriptive data features for new dataset : \ncols {data_feats['features']} and \nrows {data_feats['analyzed_observations']} from originally {data_feats['observations']}")
-
-    usecase_preferences = query_preferences(accuracy_range, precision_range, recall_range, trtime_range)
-
-    if verbose:
-        current_app.logger.info("Created performance preferences list:")
-        current_app.logger.info(usecase_preferences)
-
-    current_app.logger.info(" ")
-    current_app.logger.info("#### SELECT FUNCTIONS ####")
-
-    usecase_models, similarity_level = await choose_models(task_type=usecase_info['tasktype'], output_type=usecase_info['output'],
-                                   data_features=data_feats)
-
-    if similarity_level is None:
-        current_app.logger.info("No similar models could be found")
-        return jsonify("No similar models could be found")
-
-    distrust_pts += (3 - similarity_level)
-
-    warnings.append([
-                        "Dataset similarity level 0. Only the type of task and output match. Distrust Pts increased by 3",
-                        "Dataset similarity level 1. Datasets used shared data types. Distrust Pts increased by 2",
-                        "Dataset similarity level 2. Datasets used have similar ratios of data types. Distrust Pts increased by 1",
-                        "Dataset similarity level 3. Datasets used have features with similar meta feature values. Distrust Pts increased by 0"
-                    ][similarity_level])
-
-    current_app.logger.info(f"assist(): Selected models: {len(usecase_models)} found with similarity level {similarity_level} .")
-
-    current_app.logger.info("#### CLUSTER FUNCTIONS ####")
-
-    usecase_mgroups = cluster_models(selected_models=usecase_models, preferences=usecase_preferences)
-    current_app.logger.info(f"Acc Models: {len(usecase_mgroups['acceptable_models'])}")
+    raise NotImplementedError("Not implemented yet")
 
     if usecase_mgroups['nearly_acceptable_models'][0] in ["none"]:
         current_app.logger.info(f"Nearly Acc Models: {usecase_mgroups['nearly_acceptable_models'][0]}")
@@ -212,9 +116,9 @@ async def assistml():
     current_app.logger.info("#### RULES FUNCTIONS #### \n\n\n")
 
     if usecase_mgroups['nearly_acceptable_models'][0] in ["none"]:
-        usecase_rules = python_rules(usecase_mgroups['acceptable_models'])
+        usecase_rules = rules(usecase_mgroups['acceptable_models'])
     else:
-        usecase_rules = python_rules(usecase_mgroups['acceptable_models'] + usecase_mgroups['nearly_acceptable_models'])
+        usecase_rules = rules(usecase_mgroups['acceptable_models'] + usecase_mgroups['nearly_acceptable_models'])
 
     current_app.logger.info(f"Finished rules generation. {len(usecase_rules)} rules generated.")
 
@@ -240,7 +144,7 @@ async def assistml():
         json.dump(models_report, f, indent=3)
 
     queries_collection.update_one(
-        filter={"number": queryId},
+        filter={"number": query_number},
         update={"$set": {"report": json.dumps(models_report)}},
         upsert=False,
     )

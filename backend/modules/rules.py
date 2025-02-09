@@ -10,7 +10,7 @@ from pymongo import MongoClient
 from modules import data_encoder, association, analysis
 
 
-def python_rules(model_codes: List[str]) -> List[Dict[str, Union[str, float, List[str]]]]:
+def rules(model_codes: List[str]) -> List[Dict[str, Union[str, float, List[str]]]]:
     """
     Generates rules for the given model codes using Python scripts and retrieves the rules from MongoDB.
 

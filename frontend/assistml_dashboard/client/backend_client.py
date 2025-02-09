@@ -1,6 +1,6 @@
 import glob
 import os
-from typing import Optional
+from typing import Optional, Any
 
 import httpx
 from pydantic import ValidationError
@@ -43,9 +43,14 @@ class BackendClient:
                 except ValidationError as e:
                     return None, f"Error while parsing response: {e}"
 
-    async def report(self, class_feature_type, feature_type_list, classification_output, accuracy_slider,
-                                precision_slider,
-                                recall_slider, trtime_slider, csv_filename) -> (Optional[ReportResponseDto], Optional[str]):
+    async def report(
+            self,
+            class_feature_type,
+            feature_type_list,
+            classification_output,
+            preferences: dict[str, Any],
+            dataset_id: str, csv_filename
+    ) -> (Optional[ReportResponseDto], Optional[str]):
         feature_type_list = feature_type_list.replace(' ', '')
         feature_type_list = feature_type_list.replace("'", '')
         feature_type_list = feature_type_list.replace('"', '')
@@ -53,17 +58,15 @@ class BackendClient:
 
         url = f"{self.base_url}/assistml"
         query_dto = ReportRequestDto(
-            classif_type=class_feature_type,
-            classif_output=classification_output,
-            sem_types=feature_type_list,
-            accuracy_range=accuracy_slider,
-            precision_range=precision_slider,
-            recall_range=recall_slider,
-            trtime_range=trtime_slider,
+            classification_type=class_feature_type,
+            classification_output=classification_output,
+            semantic_types=feature_type_list,
+            preferences=preferences,
+            dataset_id=dataset_id,
             dataset_name=csv_filename
         )
-            response = await client.post(url=url, data=query_dto.model_dump(),
         async with httpx.AsyncClient(timeout=self.timeout) as client:
+            response = await client.post(url=url, json=query_dto.model_dump(by_alias=True),
                                      headers={'Content-Type': 'application/json'})
 
             if response.status_code != 200:
