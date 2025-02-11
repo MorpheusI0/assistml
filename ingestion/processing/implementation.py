@@ -6,10 +6,9 @@ import openml
 from beanie import WriteRules, Link
 
 from common.data import Task, Implementation
-from common.data.implementation import Parameter, Software
+from common.data.implementation import Parameter, Software, Platform
 from mlsea import mlsea_repository as mlsea
 from mlsea.dtos import ImplementationDto, SoftwareDto
-
 
 IMPLEMENTATION_BASE_URI = "http://w3id.org/mlsea/openml/flow/"
 
@@ -79,6 +78,8 @@ async def _ensure_implementation_exists(implementation_dto: ImplementationDto, s
         for parsed_dependency in _transform_software_dto(software_dto)
     ]
 
+    platform = _identify_platform(implementation_dto, dependencies)
+
     openml_flow = openml.flows.get_flow(implementation_dto.openml_flow_id)
     parameters_meta_info = openml_flow.parameters_meta_info
     parameters = OrderedDict[str, Parameter]()
@@ -103,7 +104,8 @@ async def _ensure_implementation_exists(implementation_dto: ImplementationDto, s
         parameters=parameters,
         components=components if len(components.items()) > 0 else None,
         description=openml_flow.description,
-        dependencies=dependencies
+        dependencies=dependencies,
+        platform=platform
     )
     await implementation.insert(link_rule=WriteRules.DO_NOTHING)
     return implementation
@@ -145,3 +147,24 @@ def _transform_software_dto(software_dto: SoftwareDto) -> List[Software]:
                 f"Could not parse software requirement: {requirement} for software: {software_dto.mlsea_software_uri}")
 
     return parsed_dependencies
+
+def _identify_platform(implementation_dto: ImplementationDto, dependencies: List[Software]) -> Platform:
+    supported_platforms = [p for p in Platform if p != Platform.UNKNOWN]
+
+    # First check if the implementation title starts with a platform short form and if the platform is a dependency
+    for platform in supported_platforms:
+        if any(implementation_dto.title.lower().startswith(f"{prefix}.") for prefix in platform.short_forms):
+            if any(dependency.name.lower() in platform.short_forms for dependency in dependencies):
+                return platform
+
+    # If not, check if any of the dependencies are a platform
+    for platform in supported_platforms:
+        if any(dependency.name.lower() in platform.short_forms for dependency in dependencies):
+            return platform
+
+    # Even if the platform is contained in the dependencies, it might start with a short form
+    for platform in supported_platforms:
+        if any(implementation_dto.title.lower().startswith(f"{prefix}.") for prefix in platform.short_forms):
+            return platform
+
+    return Platform.UNKNOWN
