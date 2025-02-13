@@ -5,7 +5,42 @@ from quart import current_app
 from sklearn.cluster import DBSCAN
 
 from common.data.projection.model import FullyJoinedModelView
+from common.data.model import Metric
 
+
+def _calculate_thresholds(
+        metrics_df: pd.DataFrame,
+        metrics: list[Metric],
+        preferences: dict[Metric, float]
+) -> Tuple[dict[Metric, Any], dict[Metric, Any]]:
+    """
+    Calculate the acceptable and nearly acceptable thresholds for each metric.
+
+    Parameters:
+    metrics_df (pd.DataFrame): DataFrame containing metric values.
+    metrics (list[Metric]): List of metrics.
+    preferences (dict[Metric, float]): Dictionary with performance preferences (tolerance factors per metric).
+
+    Returns:
+    A tuple containing:
+        - A dictionary mapping metrics to acceptable thresholds.
+        - A dictionary mapping metrics to nearly acceptable thresholds.
+    """
+    max_values = metrics_df.max()
+    min_values = metrics_df.min()
+
+    thresholds_acc = {}
+    thresholds_nacc = {}
+
+    for metric in metrics:
+        if metric.optimization_goal == 'maximize':
+            thresholds_acc[metric] = max_values[metric] * (1 - preferences[metric])
+            thresholds_nacc[metric] = max_values[metric] * (1 - (preferences[metric] * 2))
+        elif metric.optimization_goal == 'minimize':
+            thresholds_acc[metric] = min_values[metric] / (1 - preferences[metric])
+            thresholds_nacc[metric] = min_values[metric] / (1 - (preferences[metric] * 2)) if (preferences[metric] * 2) < 1 else float('inf')
+
+    return thresholds_acc, thresholds_nacc
 
 def _calculate_distrust_points(inside_ratio: float) -> int:
     """
@@ -29,7 +64,7 @@ def _calculate_distrust_points(inside_ratio: float) -> int:
 def _compute_cluster_fit(
         cluster_labels: list,
         metrics_df: pd.DataFrame,
-        metrics: list, condition_fn
+        metrics: list[Metric], condition_fn
 ) -> dict:
     """
     Compute the cluster fitness for each cluster in metrics_df['dbscan'].
@@ -59,8 +94,8 @@ def _compute_cluster_fit(
 
 def _filter_metrics_df(
         metrics_df: pd.DataFrame,
-        preferences: dict[str, Any]
-) -> Tuple[pd.DataFrame, List[str]]:
+        preferences: dict[Metric, Any]
+) -> Tuple[pd.DataFrame, List[Metric]]:
     """
     Filter the metrics DataFrame based on performance preferences.
 
@@ -85,7 +120,7 @@ def _filter_metrics_df(
             current_app.logger.warning(
                 f"Metric {metric} has {missing_ratio*100:.1f}% missing values. Dropping it.")
             metrics_df.drop(metric, axis=1, inplace=True)
-    metrics = list(metrics_df.columns)
+    metrics = [Metric(metric) for metric in list(metrics_df.columns)]
 
     # Drop rows with missing values
     metrics_df.dropna(inplace=True)
@@ -93,7 +128,7 @@ def _filter_metrics_df(
 
 def cluster_models(
         selected_models: List[FullyJoinedModelView],
-        preferences: dict[str, Any]
+        preferences: dict[Metric, float]
 ) -> Tuple[List[FullyJoinedModelView], List[FullyJoinedModelView], int, int, Optional[int]]:
     """
     Cluster models using DBSCAN and classify them into "acceptable" and "nearly acceptable" groups
@@ -120,10 +155,7 @@ def cluster_models(
     dbscan = DBSCAN(eps=0.05, min_samples=3, algorithm='kd_tree')
     metrics_df['dbscan'] = dbscan.fit_predict(metrics_df)
 
-    # Calculate the maximum values and derive thresholds for acceptable and nearly acceptable regions
-    max_values = metrics_df.max()
-    thresholds_acc = {metric: max_values[metric] * (1 - preferences[metric]) for metric in metrics}
-    thresholds_nacc = {metric: max_values[metric] * (1 - (preferences[metric] * 2)) for metric in metrics}
+    thresholds_acc, thresholds_nacc = _calculate_thresholds(metrics_df, metrics, preferences)
 
     # Retrieve distinct cluster labels and remove the noise label (-1) if present
     distinct_labels = sorted(metrics_df['dbscan'].unique())
@@ -138,7 +170,7 @@ def cluster_models(
         distinct_labels,
         metrics_df,
         metrics,
-        lambda cluster_data, metric: thresholds_acc[metric] <= cluster_data[metric]
+        lambda cluster_data, metric: (thresholds_acc[metric] <= cluster_data[metric] if metric.optimization_goal == 'maximize' else thresholds_acc[metric] >= cluster_data[metric])
     )
     clusters_acc = {label: fit for label, fit in cluster_fit_acc.items() if fit >= majority_ratio}
 
@@ -152,7 +184,7 @@ def cluster_models(
         distinct_labels,
         metrics_df,
         metrics,
-        lambda cluster_data, metric: (thresholds_nacc[metric] <= cluster_data[metric]) & (cluster_data[metric] < thresholds_acc[metric])
+        lambda cluster_data, metric: ((thresholds_nacc[metric] <= cluster_data[metric]) & (cluster_data[metric] < thresholds_acc[metric]) if metric.optimization_goal == 'maximize' else (thresholds_acc[metric] < cluster_data[metric]) & (cluster_data[metric] <= thresholds_nacc[metric]))
     )
     clusters_nacc = {label: fit for label, fit in cluster_fit_nacc.items() if fit >= majority_ratio}
 

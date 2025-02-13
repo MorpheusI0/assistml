@@ -6,6 +6,7 @@ from assistml_dashboard.components.report import create_report_layout, create_su
 from assistml_dashboard.components.sidebar.classifier_preferences_callbacks import register_classifier_preferences_callbacks
 from assistml_dashboard.components.sidebar.dataset_characteristics_callbacks import register_dataset_characteristics_callbacks
 from common.dto import AnalyseDatasetResponseDto
+from common.data.model import Metric
 
 
 def register_sidebar_callbacks(app: Flash):
@@ -54,10 +55,11 @@ def register_sidebar_callbacks(app: Flash):
 
         suggested_features = create_suggested_feature_layout(response.data_profile, class_feature_type)
         preferences = {  # TODO: make this dynamic
-            "accuracy": accuracy_slider,
-            "precision": precision_slider,
-            "recall": recall_slider,
-            "training_time": trtime_slider
+            Metric.ACCURACY: accuracy_slider,
+            Metric.PRECISION: precision_slider,
+            Metric.RECALL: recall_slider,
+            Metric.TRAINING_TIME: trtime_slider,
+            Metric.ROOT_MEAN_SQUARED_ERROR: 0.8,
         }
         report, error = await backend.report(class_feature_type, feature_type_list, classification_type, preferences, response.db_write_status.dataset_id, csv_filename)
 

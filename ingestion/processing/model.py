@@ -91,16 +91,16 @@ async def _generate_setup(run_dto: RunDto, task: Task) -> Setup:
     )
 
 
-def _generate_metrics(run_dto: RunDto) -> Dict[str, Any]:
+def _generate_metrics(run_dto: RunDto) -> Dict[Metric, Any]:
     optional_metric_names = {Metric.TRAINING_TIME}
 
     # metrics taken from MLSea
     run_metrics_df = mlsea.retrieve_all_metrics_from_openml_for_run(run_dto.openml_run_id)
     metrics = list(set([metric for metric  in Metric]) - optional_metric_names)
-    run_metrics: Dict[str, Any] = {
-        metric.key: run_metrics_df.loc[run_metrics_df.measure_type == f"{EVALUATION_MEASURE_BASE_URI}{metric.key}", 'value'].values[0]
+    run_metrics: Dict[Metric, Any] = {
+        metric: run_metrics_df.loc[run_metrics_df.measure_type == f"{EVALUATION_MEASURE_BASE_URI}{metric.value}", 'value'].values[0]
         for metric in metrics
-        if f"{EVALUATION_MEASURE_BASE_URI}{metric.key}" in run_metrics_df.measure_type.values
+        if f"{EVALUATION_MEASURE_BASE_URI}{metric.value}" in run_metrics_df.measure_type.values
     }
 
     # metrics taken from OpenML
@@ -109,6 +109,6 @@ def _generate_metrics(run_dto: RunDto) -> Dict[str, Any]:
     if fold_evaluations is not None:
         if "usercpu_time_millis" in fold_evaluations:
             usercpu_time_millis_lists = fold_evaluations['usercpu_time_millis'].values()
-            run_metrics[Metric.TRAINING_TIME.key] = mean([mean(list(x.values())) for x in usercpu_time_millis_lists])
+            run_metrics[Metric.TRAINING_TIME] = mean([mean(list(x.values())) for x in usercpu_time_millis_lists])
 
     return run_metrics

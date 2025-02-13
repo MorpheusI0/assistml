@@ -1,12 +1,12 @@
-from typing import Optional, List, Any
+from typing import Optional, List, Any, Dict
 
 from beanie import Document, Link
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, confloat
 
 from .dataset import Dataset
-from .model import Model
+from .model import Model, Metric
 from .task import TaskType
-from .utils import CustomBaseModel, alias_generator
+from .utils import CustomBaseModel, alias_generator, encode_dict
 
 
 class Summary(CustomBaseModel):
@@ -47,14 +47,27 @@ class Query(Document):
     task_type: TaskType
     dataset: Link[Dataset]
     semantic_types: List[str]
-    preferences: dict[str, float]
+    preferences: Dict[Metric, confloat(ge=0, le=1)]
     report: Optional[Report] = None
 
     class Settings:
         name = "queries"
         keep_nulls = False
+        validate_on_save = True
         alias_generator = alias_generator
+        bson_encoders = {
+            Dict: encode_dict
+        }
 
     @field_validator("preferences", mode="before")
-    def validate_preferences(cls, v: dict[str, float]) -> dict[str, Any]:
+    def validate_preferences(cls, v: Any) -> dict[Metric, Any]:
         return Model.validate_metrics(v)
+
+    @field_validator("task_type", mode="before")
+    def convert_task_type(cls, value):
+        if isinstance(value, str):
+            try:
+                return TaskType(value)
+            except KeyError:
+                raise ValueError(f"Invalid task_type: {value}")
+        return value

@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Optional, Any, List, Type, Dict
+from typing import Optional, Any, List, Type, Dict, Literal
 
 from beanie import Document, Link
 from pydantic import field_validator
@@ -7,7 +7,7 @@ from pymongo import IndexModel
 
 from .implementation import Implementation
 from .task import Task
-from .utils import CustomBaseModel, alias_generator
+from .utils import CustomBaseModel, alias_generator, encode_dict
 
 
 class Parameter(CustomBaseModel):
@@ -19,37 +19,33 @@ class Parameter(CustomBaseModel):
 
 
 class Metric(Enum):
-    AREA_UNDER_CURVE = ("area_under_curve", "Area under curve")
-    AVERAGE_COST = ("average_cost", "Average cost")
-    F_MEASURE = ("f_measure", "F-measure")
-    KAPPA = ("kappa", "Kappa")
+    AREA_UNDER_CURVE = ("area_under_curve", "Area under curve", "maximize")
+    AVERAGE_COST = ("average_cost", "Average cost", "minimize")
+    F_MEASURE = ("f_measure", "F-measure", "maximize")
+    KAPPA = ("kappa", "Kappa", "maximize")
     KONONENKO_BRANKO_RELATIVE_INFORMATION_SCORE = (
-        "kononenko_branko_relative_information_score", "Kononenko Branko relative information score"
+        "kononenko_branko_relative_information_score", "Kononenko Branko relative information score", "maximize"
     )
-    MEAN_ABSOLUTE_ERROR = ("mean_absolute_error", "Mean absolute error")
-    MEAN_PRIOR_ABSOLUTE_ERROR = ("mean_prior_absolute_error", "Mean prior absolute error")
-    PRECISION = ("precision", "Precision")
-    ACCURACY = ("accuracy", "Accuracy")
-    PRIOR_ENTROPY = ("prior_entropy", "Prior entropy")
-    RECALL = ("recall", "Recall")
-    RELATIVE_ABSOLUTE_ERROR = ("relative_absolute_error", "Relative absolute error")
-    ROOT_MEAN_PRIOR_SQUARED_ERROR = ("root_mean_prior_squared_error", "Root mean prior squared error")
-    ROOT_MEAN_SQUARED_ERROR = ("root_mean_squared_error", "Root mean squared error")
-    ROOT_RELATIVE_SQUARED_ERROR = ("root_relative_squared_error", "Root relative squared error")
-    TOTAL_COST = ("total_cost", "Total cost")
-    TRAINING_TIME = ("training_time", "Training time")
+    MEAN_ABSOLUTE_ERROR = ("mean_absolute_error", "Mean absolute error", "minimize")
+    MEAN_PRIOR_ABSOLUTE_ERROR = ("mean_prior_absolute_error", "Mean prior absolute error", "minimize")
+    PRECISION = ("precision", "Precision", "maximize")
+    ACCURACY = ("accuracy", "Accuracy", "maximize")
+    PRIOR_ENTROPY = ("prior_entropy", "Prior entropy", "maximize")
+    RECALL = ("recall", "Recall", "maximize")
+    RELATIVE_ABSOLUTE_ERROR = ("relative_absolute_error", "Relative absolute error", "minimize")
+    ROOT_MEAN_PRIOR_SQUARED_ERROR = ("root_mean_prior_squared_error", "Root mean prior squared error", "minimize")
+    ROOT_MEAN_SQUARED_ERROR = ("root_mean_squared_error", "Root mean squared error", "minimize")
+    ROOT_RELATIVE_SQUARED_ERROR = ("root_relative_squared_error", "Root relative squared error", "minimize")
+    TOTAL_COST = ("total_cost", "Total cost", "minimize")
+    TRAINING_TIME = ("training_time", "Training time", "minimize")
 
-    def __init__(self, key: str, display_name: str, datatype: Type = float):
-        self.key = key
+    def __new__(cls, value: str, display_name: str, optimization_goal = Literal["minimize", "maximize"], datatype: Type = float):
+        self = object.__new__(cls)
+        self._value_ = value
         self.display_name = display_name
+        self.optimization_goal = optimization_goal
         self.datatype = datatype
-
-    @classmethod
-    def from_key(cls, key: str) -> "Metric":
-        for metric in cls:
-            if metric.key == key:
-                return metric
-        raise ValueError(f"Key {key} is not a valid metric")
+        return self
 
 
 class Setup(CustomBaseModel):
@@ -89,19 +85,21 @@ class EnrichedModel(CustomBaseModel):
 class Model(Document):
     mlsea_uri: Optional[str] = None
     setup: Setup
-    metrics: Dict[str, Any]
+    metrics: Dict[Metric, Any]
     enriched_model: Optional[EnrichedModel] = None
 
     class Settings:
         name = "models"
         keep_nulls = False
         validate_on_save = True
-        use_enum_values = True
         indexes = [
             IndexModel("mlseaUri", name="mlseaUri_", unique=True,
                        partialFilterExpression={"mlseaUri": {"$exists": True}}),
             IndexModel("setup.task.$id", name="setup.task.$id_"),
         ]
+        bson_encoders = {
+            Dict: encode_dict
+        }
 
     class Config:
         arbitrary_types_allowed=True,
@@ -109,17 +107,17 @@ class Model(Document):
         alias_generator = alias_generator
 
     @field_validator("metrics", mode="before")
-    def validate_metrics(cls, v: Any) -> Dict[str, Any]:
+    def validate_metrics(cls, v: Any) -> Dict[Metric, Any]:
         if not isinstance(v, dict):
             raise ValueError("Metrics must be a dictionary")
 
-        validated: Dict[str, Any] = {}
+        validated: Dict[Metric, Any] = {}
         for key, value in v.items():
             if isinstance(key, Metric):
                 metric = key
             elif isinstance(key, str):
                 try:
-                    metric = Metric.from_key(key)
+                    metric = Metric(key)
                 except ValueError:
                     raise KeyError(f"Key {key} is not a valid metric")
             else:
@@ -134,5 +132,5 @@ class Model(Document):
                         f"Value {value} for metric {metric.name} must be of type {expected_type}, but is {type(value)}"
                     )
 
-            validated[metric.key] = value
+            validated[metric] = value
         return validated

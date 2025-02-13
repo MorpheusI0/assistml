@@ -39,6 +39,6 @@ async def generate_report(request: ReportRequestDto):
         distrust_pts += distrust_pts_acc
         warnings.append(f"Acceptable models distrust points increased by {distrust_pts_acc}")
 
-    if distrust_pts_nacc > 0:
+    if distrust_pts_nacc and distrust_pts_nacc > 0:
         distrust_pts += distrust_pts_nacc
         warnings.append(f"Nearly acceptable models distrust points increased by {distrust_pts_nacc}")

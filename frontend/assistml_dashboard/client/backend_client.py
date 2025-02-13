@@ -6,6 +6,7 @@ import httpx
 from pydantic import ValidationError
 
 from common.dto import AnalyseDatasetRequestDto, AnalyseDatasetResponseDto, ReportRequestDto, ReportResponseDto
+from common.data.model import Metric
 
 
 class BackendClient:
@@ -48,7 +49,7 @@ class BackendClient:
             class_feature_type,
             feature_type_list,
             classification_output,
-            preferences: dict[str, Any],
+            preferences: dict[Metric, Any],
             dataset_id: str, csv_filename
     ) -> (Optional[ReportResponseDto], Optional[str]):
         feature_type_list = feature_type_list.replace(' ', '')
