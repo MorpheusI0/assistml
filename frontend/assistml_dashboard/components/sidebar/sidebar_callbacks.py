@@ -32,16 +32,12 @@ def register_sidebar_callbacks(app: Flash):
             State('upload-data', 'filename'),
 
             State('classification_type', 'value'),
-            State('accuracy_slider', 'value'),
-            State('precision_slider', 'value'),
-            State('recall_slider', 'value'),
-            State('trtime_slider', 'value'),
+            State('slider-values-store', 'data'),
         ],
         prevent_initial_call=True
     )
     async def trigger_data_profiler(submit_btn_clicks, serialized_dataframe, class_label, class_feature_type,
-                              feature_type_list, csv_filename, classification_type, accuracy_slider, precision_slider,
-                              recall_slider, trtime_slider):
+                              feature_type_list, csv_filename, classification_type, stored_values):
         print(type(submit_btn_clicks))
         response: AnalyseDatasetResponseDto
         response, error = await backend.analyse_dataset(class_label, class_feature_type, feature_type_list)
@@ -54,13 +50,7 @@ def register_sidebar_callbacks(app: Flash):
         current_app.logger.debug(f"Dataset_id: {response.db_write_status.dataset_id}")
 
         suggested_features = create_suggested_feature_layout(response.data_profile, class_feature_type)
-        preferences = {  # TODO: make this dynamic
-            Metric.ACCURACY: accuracy_slider,
-            Metric.PRECISION: precision_slider,
-            Metric.RECALL: recall_slider,
-            Metric.TRAINING_TIME: trtime_slider,
-            Metric.ROOT_MEAN_SQUARED_ERROR: 0.8,
-        }
+        preferences = {Metric(metric): value for metric, value in stored_values.items()}
         report, error = await backend.report(class_feature_type, feature_type_list, classification_type, preferences, response.db_write_status.dataset_id, csv_filename)
 
         if report is None:

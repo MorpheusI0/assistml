@@ -96,7 +96,7 @@ def _generate_metrics(run_dto: RunDto) -> Dict[Metric, Any]:
 
     # metrics taken from MLSea
     run_metrics_df = mlsea.retrieve_all_metrics_from_openml_for_run(run_dto.openml_run_id)
-    metrics = list(set([metric for metric  in Metric]) - optional_metric_names)
+    metrics = list(set([metric for metric in Metric]) - optional_metric_names)
     run_metrics: Dict[Metric, Any] = {
         metric: run_metrics_df.loc[run_metrics_df.measure_type == f"{EVALUATION_MEASURE_BASE_URI}{metric.value}", 'value'].values[0]
         for metric in metrics
