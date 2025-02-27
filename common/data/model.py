@@ -47,6 +47,9 @@ class Metric(Enum):
         self.datatype = datatype
         return self
 
+    def __hash__(self):
+        return hash(self.value)
+
 
 class Setup(CustomBaseModel):
     hyper_parameters: List[Parameter]

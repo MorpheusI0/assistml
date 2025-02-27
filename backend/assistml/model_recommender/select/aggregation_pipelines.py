@@ -195,6 +195,19 @@ def _get_sim_3_tasks_pipeline(task_type: TaskType, new_dataset: Dataset, feature
 def _get_models_aggregation_extension():
     pipeline = [
         {
+            "$set": {
+                "dataset": {
+                    "$mergeObjects": [
+                        { "$literal": { "$ref": Dataset.get_collection_name()}},
+                        {
+                            "$arrayToObject": [
+                                [{"k": {"$literal": "$id"}, "v": "$dataset._id"}]
+                            ]
+                        }
+                    ]
+                }
+            }
+        }, {
             "$lookup": {
                 "from": Model.get_collection_name(),
                 "localField": "_id",

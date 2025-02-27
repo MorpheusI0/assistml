@@ -1,6 +1,7 @@
 from enum import Enum
 from typing import Dict, List, ForwardRef, Optional
 
+import numpy as np
 from beanie import Document, BackLink
 from pydantic import Field
 from pymongo import IndexModel
@@ -114,6 +115,36 @@ class Dataset(Document):
         use_enum_values = True
         alias_generator = alias_generator
 
+    def _get_dataset_descriptor(self) -> np.ndarray:
+        """
+        Get the dataset descriptor.
+
+        Returns:
+        np.array: The dataset descriptor.
+        """
+        return np.array([
+            self.info.observations,
+            self.info.features,
+            self.info.analyzed_observations
+        ])
+
+    def similarity(self, other: "Dataset") -> float:
+        """
+        Calculate the similarity between two datasets.
+
+        Parameters:
+        other (Dataset): The other dataset to compare with.
+
+        Returns:
+        float: The similarity between the two datasets.
+        """
+        self_vector = self._get_dataset_descriptor()
+        other_vector = other._get_dataset_descriptor()
+        self_norm = np.linalg.norm(self_vector)
+        other_norm = np.linalg.norm(other_vector)
+        if self_norm == 0 or other_norm == 0:
+            return 0.0
+        return np.dot(self_vector, other_vector) / (self_norm * other_norm)
 
 #from .task import Task
 #Dataset.update_forward_refs()

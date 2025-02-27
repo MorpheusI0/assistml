@@ -10,7 +10,6 @@ from assistml.model_recommender import generate_report
 from common.dto import ReportRequestDto
 from modules.rank import rank_models, shortlist_models
 from modules.results import generate_results
-from modules.rules import rules
 
 
 @bp.route('/assistml', methods=['POST'])
