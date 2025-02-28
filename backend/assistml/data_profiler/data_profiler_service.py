@@ -91,7 +91,8 @@ async def _check_for_similar_dataset_in_db(data_profile) -> dataset_projection.E
     similar_datasets = Dataset.find({
         "info.datasetName": data_profile.info.dataset_name,
         "info.observations": data_profile.info.observations,
-        "info.features": data_profile.info.features,
+        "info.nrTotalFeatures": data_profile.info.nr_total_features,
+        "info.nrAnalyzedFeatures": data_profile.info.nr_analyzed_features,
         "info.numericRatio": data_profile.info.numeric_ratio,
         "info.categoricalRatio": data_profile.info.categorical_ratio,
         "info.datetimeRatio": data_profile.info.datetime_ratio,

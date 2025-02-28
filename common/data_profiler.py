@@ -42,6 +42,7 @@ class DataProfiler():
         self.class_label = target_label
         self.target_feature_type = target_feature_type
         self.nr_total_features = 0
+        self.nr_analyzed_features = 0
         self.df = ''
         self.df_complete = ''
         self.column_names_list = ''
@@ -306,6 +307,9 @@ class DataProfiler():
         self.df_complete = pd.DataFrame()
         self.df_complete = pd.concat([self.df_complete, self.df], axis=1)
 
+        self.nr_total_features = self.df_complete.shape[1]
+        self.json_data["info"]["nrTotalFeatures"] = self.nr_total_features - 1  # Do not count class label
+
         # Check if the target label provided by the user exists
         if not self.class_label in self.column_names_list:
             return "processing failed"
@@ -313,8 +317,8 @@ class DataProfiler():
         self.json_data["info"]["observations"] = self.df.shape[0]
         (self.df, self.miss_value, self.drop_cols) = self.handle_missing_values(self.df)
         self.json_data["info"]["analyzedObservations"] = self.df.shape[0]
-        self.nr_total_features = self.df.shape[1] - 1  # Do not count class label
-        self.json_data["info"]["features"] = self.nr_total_features
+        self.nr_analyzed_features = self.df.shape[1] - 1  # Do not count class label
+        self.json_data["info"]["nrAnalyzedFeatures"] = self.nr_analyzed_features
         return ("processing success")
 
     # Identify indices of numerical, categorical features
@@ -401,6 +405,9 @@ class DataProfiler():
                     # Calculate missing values
                     self.json_data["features"]["numericalFeatures"][feature]['missingValues'] = self.miss_value[
                         feature]
+                    # Calculate min and max values
+                    self.json_data["features"]["numericalFeatures"][feature]['minValue'] = self.df[feature].min()
+                    self.json_data["features"]["numericalFeatures"][feature]['maxValue'] = self.df[feature].max()
                     # Calculate min order and max order
                     self.json_data["features"]["numericalFeatures"][feature]['minOrderm'] = self.min_orderm_cal(
                         self.df, feature)

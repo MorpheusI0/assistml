@@ -23,7 +23,8 @@ class Info(CustomBaseModel):
     target_feature_type: TargetFeatureType
     observations: int
     analyzed_observations: int
-    features: int
+    nr_analyzed_features: int
+    nr_total_features: int
     numeric_ratio: float
     categorical_ratio: float
     datetime_ratio: float
@@ -58,6 +59,8 @@ class NumericalFeature(CustomBaseModel):
     anova_pvalue: float
     mutual_info: Optional[float] = None  # Does not exist for regression
     missing_values: int
+    min_value: float
+    max_value: float
     min_orderm: float
     max_orderm: float
     quartiles: Quantiles
@@ -115,6 +118,149 @@ class Dataset(Document):
         use_enum_values = True
         alias_generator = alias_generator
 
+    def _get_base_meta_dataset_descriptor(self) -> np.ndarray:
+        """
+        Get the base meta dataset descriptor.
+
+        Returns:
+        np.array: The base meta dataset descriptor.
+        """
+        base_observations = np.log1p(self.info.observations)
+        base_features = np.log1p(self.info.nr_total_features)
+        base_numeric_ratio = self.info.numeric_ratio
+        base_categorical_ratio = self.info.categorical_ratio
+        base_datetime_ratio = self.info.datetime_ratio
+        base_unstructured_ratio = self.info.unstructured_ratio
+        return np.array([
+            base_observations,
+            base_features,
+            base_numeric_ratio,
+            base_categorical_ratio,
+            base_datetime_ratio,
+            base_unstructured_ratio
+        ])
+
+    def _get_aggregated_numerical_dataset_descriptor(self) -> np.ndarray:
+        """
+        Get the aggregated numerical dataset descriptor.
+
+        Returns:
+        np.array: The aggregated numerical dataset descriptor.
+        """
+        numeric_features = self.features.numerical_features
+        if numeric_features:
+            numeric_stats = []
+            for feature in numeric_features.values():
+                missing_value_ratio = feature.missing_values / self.info.analyzed_observations
+                min_value = np.log1p(abs(feature.min_value))
+                max_value = np.log1p(abs(feature.max_value))
+                outliers_ratio = feature.outliers.number / self.info.analyzed_observations
+                monotonous_filtering = feature.monotonous_filtering
+                anova_f1 = np.log1p(feature.anova_f1)
+                anova_pvalue = feature.anova_pvalue
+                numeric_stats.append([
+                    missing_value_ratio,
+                    min_value,
+                    max_value,
+                    outliers_ratio,
+                    monotonous_filtering,
+                    anova_f1,
+                    anova_pvalue
+                ])
+            numeric_stats = np.array(numeric_stats)
+            numeric_agg_mean = np.mean(numeric_stats, axis=0)
+            numeric_agg_std = np.std(numeric_stats, axis=0)
+        else:
+            numeric_agg_mean = np.zeros(7)
+            numeric_agg_std = np.zeros(7)
+        return np.hstack([numeric_agg_mean, numeric_agg_std])
+
+    def _get_aggregated_categorical_dataset_descriptor(self) -> np.ndarray:
+        """
+        Get the aggregated categorical dataset descriptor.
+
+        Returns:
+        np.array: The aggregated categorical dataset descriptor.
+        """
+        categorical_features = self.features.categorical_features
+        if categorical_features:
+            categorical_stats = []
+            for feature in categorical_features.values():
+                missing_value_ratio = feature.missing_values / self.info.analyzed_observations
+                nr_levels = feature.nr_levels
+                imbalance = feature.imbalance
+                monotonous_filtering = feature.monotonous_filtering
+                mutual_info = feature.mutual_info
+                categorical_stats.append([
+                    missing_value_ratio,
+                    nr_levels,
+                    imbalance,
+                    monotonous_filtering,
+                    mutual_info
+                ])
+            categorical_stats = np.array(categorical_stats)
+            categorical_agg_mean = np.mean(categorical_stats, axis=0)
+            categorical_agg_std = np.std(categorical_stats, axis=0)
+        else:
+            categorical_agg_mean = np.zeros(5)
+            categorical_agg_std = np.zeros(5)
+        return np.hstack([categorical_agg_mean, categorical_agg_std])
+
+    def _get_aggregated_unstructured_dataset_descriptor(self) -> np.ndarray:
+        """
+        Get the aggregated unstructured dataset descriptor.
+
+        Returns:
+        np.array: The aggregated unstructured dataset descriptor.
+        """
+        unstructured_features = self.features.unstructured_features
+        if unstructured_features:
+            unstructured_stats = []
+            for feature in unstructured_features.values():
+                missing_value_ratio = feature.missing_values / self.info.analyzed_observations
+                vocab_size = feature.vocab_size
+                relative_vocab = feature.relative_vocab
+                vocab_concentration = feature.vocab_concentration
+                entropy = feature.entropy
+                min_vocab = feature.min_vocab
+                max_vocab = feature.max_vocab
+                unstructured_stats.append([
+                    missing_value_ratio,
+                    vocab_size,
+                    relative_vocab,
+                    vocab_concentration,
+                    entropy,
+                    min_vocab,
+                    max_vocab
+                ])
+            unstructured_stats = np.array(unstructured_stats)
+            unstructured_agg_mean = np.mean(unstructured_stats, axis=0)
+            unstructured_agg_std = np.std(unstructured_stats, axis=0)
+        else:
+            unstructured_agg_mean = np.zeros(7)
+            unstructured_agg_std = np.zeros(7)
+        return np.hstack([unstructured_agg_mean, unstructured_agg_std])
+
+    def _get_aggregated_datetime_dataset_descriptor(self) -> np.ndarray:
+        """
+        Get the aggregated datetime dataset descriptor.
+
+        Returns:
+        np.array: The aggregated datetime dataset descriptor.
+        """
+        datetime_features = self.features.datetime_features
+        if datetime_features:
+            datetime_stats = []
+            for feature in datetime_features.values():
+                datetime_stats.append([])  # Placeholder for datetime features, not implemented yet
+            datetime_stats = np.array(datetime_stats)
+            datetime_agg_mean = np.mean(datetime_stats, axis=0)
+            datetime_agg_std = np.std(datetime_stats, axis=0)
+        else:
+            datetime_agg_mean = np.zeros(0)
+            datetime_agg_std = np.zeros(0)
+        return np.hstack([datetime_agg_mean, datetime_agg_std])
+
     def _get_dataset_descriptor(self) -> np.ndarray:
         """
         Get the dataset descriptor.
@@ -122,11 +268,28 @@ class Dataset(Document):
         Returns:
         np.array: The dataset descriptor.
         """
-        return np.array([
-            self.info.observations,
-            self.info.features,
-            self.info.analyzed_observations
+        weights = {
+            "base": 0.5,            # Base dataset information (6 values)
+            "numeric": 0.2,         # Numeric features (14 values)
+            "categorical": 0.3,     # Categorical features (10 values)
+            "unstructured": 0.2,    # Unstructured features (14 values)
+            "datetime": 0.0,        # Datetime features (0 values)
+        }
+
+        base_vector = self._get_base_meta_dataset_descriptor() * weights["base"]
+        numeric_vector = self._get_aggregated_numerical_dataset_descriptor() * weights["numeric"]
+        categorical_vector = self._get_aggregated_categorical_dataset_descriptor() * weights["categorical"]
+        unstructured_vector = self._get_aggregated_unstructured_dataset_descriptor() * weights["unstructured"]
+        datetime_vector = self._get_aggregated_datetime_dataset_descriptor() * weights["datetime"]
+
+        final_vector = np.hstack([
+            base_vector,
+            numeric_vector,
+            categorical_vector,
+            unstructured_vector,
+            datetime_vector
         ])
+        return final_vector
 
     def similarity(self, other: "Dataset") -> float:
         """
