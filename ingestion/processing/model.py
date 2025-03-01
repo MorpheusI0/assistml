@@ -2,10 +2,11 @@ from statistics import mean
 from typing import Optional, Any, Dict
 
 import openml.runs
-from beanie import Link
+from beanie import Link, WriteRules
 
 from common.data import Task, Model, Implementation
 from common.data.model import Setup, Parameter, Metric
+from common.data.implementation import Platform
 from mlsea import mlsea_repository as mlsea
 from mlsea.dtos import RunDto
 from processing.implementation import find_or_create_implementation
@@ -82,6 +83,11 @@ async def _generate_setup(run_dto: RunDto, task: Task) -> Setup:
     implementation = await find_or_create_implementation(openml_setup.flow_id)
     if implementation is None:
         raise ValueError(f"Could not find or create implementation for setup")
+    if (implementation.platform in [Platform.WEKA]
+            and implementation.class_name is None
+            and openml_run.setup_string is not None):
+        implementation.class_name = openml_run.setup_string.split(' ')[0]
+        await implementation.save(link_rule=WriteRules.DO_NOTHING)
 
     return Setup(
         hyper_parameters=hyper_parameters,

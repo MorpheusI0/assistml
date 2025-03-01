@@ -31,6 +31,9 @@ class Platform(Enum):
         self.short_forms = short_forms
         return self
 
+    def __hash__(self):
+        return hash(self.value)
+
 class Software(CustomBaseModel):
     mlsea_uri: Optional[str] = None
     name: str
@@ -44,12 +47,12 @@ class Parameter(CustomBaseModel):
 class Implementation(Document):
     mlsea_uri: Optional[str] = None
     title: str
+    class_name: Optional[str] = None
     dependencies: List[Software]
     platform: Platform
     parameters: Dict[str, Parameter]
     components: Optional[Dict[str, Link[Implementation]]] = None
     description: Optional[str] = None
-    task: List[BackLink[Task]] = Field(json_schema_extra={"original_field": "relatedImplementations"})
 
     class Settings:
         name = "implementations"

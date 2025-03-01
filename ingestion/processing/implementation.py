@@ -90,6 +90,8 @@ async def _ensure_implementation_exists(implementation_dto: ImplementationDto, s
             description=parameters_meta_info[param]['description']
         )
 
+    class_name = openml_flow.class_name
+
     components = {}
     for component_name, component in openml_flow.components.items():
         implementation = await find_or_create_implementation(component.flow_id)
@@ -105,7 +107,8 @@ async def _ensure_implementation_exists(implementation_dto: ImplementationDto, s
         components=components if len(components.items()) > 0 else None,
         description=openml_flow.description,
         dependencies=dependencies,
-        platform=platform
+        platform=platform,
+        class_name=class_name
     )
     await implementation.insert(link_rule=WriteRules.DO_NOTHING)
     return implementation
