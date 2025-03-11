@@ -84,22 +84,30 @@ async def create_classifier_preferences():
             html.Br(),
         ])
 
+    default_metric_preferences = {
+        Metric.ACCURACY.value: 0.35,
+        Metric.PRECISION.value: 0.35,
+        Metric.RECALL.value: 0.35,
+        Metric.TRAINING_TIME.value: 0.35,
+    }
     metric_preferences = html.Div([
         dbc.Label(f"Select what metrics to optimize",
                   width=7, color="#FFFAF0",
                   style={"text-align": "left", 'justify': 'left', 'font-size': '15px', 'font-weight': 'bold',
                          'width': '100%', "background-color": "transparent", "color": "black"}),
+
         dcc.Dropdown(
             id="metric-dropdown",
             options=[{"label": metric.display_name, "value": metric.value} for metric in Metric],
             multi=True,
             placeholder="Choose one ore more metric...",
+            value=list(default_metric_preferences.keys()),
             clearable=True
         ),
 
         html.Br(),
 
-        dcc.Store(id="slider-values-store", data={}),
+        dcc.Store(id="slider-values-store", data=default_metric_preferences),
 
         html.Div(id="slider-container"),
     ])
