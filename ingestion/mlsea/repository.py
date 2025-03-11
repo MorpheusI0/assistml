@@ -19,8 +19,13 @@ class MLSeaRepository:
         cache_dir_path (str): The path to the directory where to store the cached results.
     """
 
-    def __init__(self, sparql_endpoint: str = Config.MLSEA_SPARQL_ENDPOINT, use_cache: bool = Config.MLSEA_USE_CACHE,
-                 cache_dir_path: str = Config.MLSEA_CACHE_DIR, retries: int = 3, rate_limit: int = 120):
+    def __init__(self,
+            sparql_endpoint: str = Config.MLSEA_SPARQL_ENDPOINT,
+            use_cache: bool = Config.MLSEA_USE_CACHE,
+            cache_dir_path: str = Config.MLSEA_CACHE_DIR,
+            retries: int = 10,
+            rate_limit: int = Config.MLSEA_RATE_LIMIT
+    ):
         self._sparql_endpoint = sparql_endpoint
         self._use_cache = use_cache
         self._cache_dir_path = cache_dir_path
@@ -186,6 +191,7 @@ class MLSeaRepository:
         Returns:
             pd.DataFrame: The DataFrame with the query results.
         """
+        backoff_time = 1  # start with 1 second
         for try_no in range(self._retries):
             try:
                 return self._execute_query(query, **params)
@@ -193,7 +199,10 @@ class MLSeaRepository:
                 if try_no == self._retries - 1:
                     raise ex
                 print(f"Error executing query: {ex}")
+                print(f"Retrying in {backoff_time} seconds...")
                 print(f"Retrying... ({try_no + 1})")
+                time.sleep(backoff_time)
+                backoff_time *= 2
 
     def _ensure_rate_limit(self):
         """

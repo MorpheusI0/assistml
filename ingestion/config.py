@@ -10,6 +10,9 @@ class Config:
     MLSEA_SPARQL_ENDPOINT = os.getenv('MLSEA_SPARQL_ENDPOINT')
     MLSEA_USE_CACHE = _parse_bool(os.getenv('MLSEA_USE_CACHE', False))
     MLSEA_CACHE_DIR = os.path.expanduser(os.getenv('MLSEA_CACHE_DIR', '/tmp/mlsea-cache'))
+    MLSEA_RATE_LIMIT = int(os.getenv('MLSEA_RATE_LIMIT', 120))
+
+    OPENML_USE_CACHE = _parse_bool(os.getenv('OPENML_USE_CACHE', False))
 
     MONGO_HOST = os.getenv("MONGO_HOST")
     MONGO_PORT = int(os.getenv("MONGO_PORT"))
