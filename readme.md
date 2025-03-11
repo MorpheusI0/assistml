@@ -1,6 +1,6 @@
 # AssistML: An alternative to AutoML recommending ML Solutions
 
-> 09.01.2024
+> 11.03.2025
 
 <img src="./assistML.png"/>
 
@@ -12,11 +12,10 @@ This paper explains how AssistML, a novel concept to recommend ML solutions, i. 
 
 ## Repository organization
 
-- **backend**: Main script is `backend/run.py`
-- **frontend**: Main script is `frontend/modules/assist_dashboard.py`
-- **repository**: Contains metadata to recreate the metadata repository
-- **source-code**: Contains the corresponding source code of the ML solutions described in the metadata repository.
-- **Experimental_Data.pdf**: Includes the full list of ML solutions recommended by AssistML for four different use cases, as well as their corresponding adapted ML solutions obtained by reusing the source code.
+- **backend**: The core system that recommends implementations and configurations for new datasets. Main script is `backend/run.py`
+- **frontend**: User interface to make the backend accessible and present its response. Main script is `frontend/run.py`
+- **ingestion**: A Pipeline which creates a metadata repository based on OpenML while utilizing MLSea. Main script is `ingestion/main.py`
+- **common**: Shared code between the frontend, backend and the ingestion. Contains the data models of the metadata repository and data transfer objects for the communication between the frontend and the backend.
 
 ## Reproducibility
 
