@@ -24,23 +24,32 @@ async def process_all_implementations(task: Task, recursive: bool = False, head:
             task_implementations_df = task_implementations_df.head(head)
 
         for implementation_dto in task_implementations_df.itertuples(index=False):
-            implementation_dto = ImplementationDto(*implementation_dto)
+            try:
+                implementation_dto = ImplementationDto(*implementation_dto)
 
-            print(f"Processing implementation {implementation_dto.openml_flow_id}")
+                print(f"Processing implementation {implementation_dto.openml_flow_id}")
 
-            software_df = mlsea.retrieve_dependencies_from_openml_for_implementation(
-                implementation_dto.openml_flow_id)
-            software_dtos = [SoftwareDto(*software_dto) for software_dto in software_df.itertuples(index=False)]
+                software_df = mlsea.retrieve_dependencies_from_openml_for_implementation(
+                    implementation_dto.openml_flow_id)
+                software_dtos = [SoftwareDto(*software_dto) for software_dto in software_df.itertuples(index=False)]
 
-            implementation: Implementation = await _ensure_implementation_exists(implementation_dto, software_dtos)
-            if task.related_implementations is None:
-                task.related_implementations = []
+                implementation: Implementation = await _ensure_implementation_exists(implementation_dto, software_dtos)
+                if task.related_implementations is None:
+                    task.related_implementations = []
 
-            if implementation.id not in [impl.to_ref().id for impl in task.related_implementations]:
-                task.related_implementations.append(Link(implementation.to_ref(), Implementation))
+                if implementation.id not in [impl.to_ref().id for impl in task.related_implementations]:
+                    task.related_implementations.append(Link(implementation.to_ref(), Implementation))
 
-            count += 1
-            offset_id = implementation_dto.openml_flow_id
+            except Exception as e:
+                print(f"Error processing implementation {implementation_dto.openml_flow_id}: {e}")
+                with open("error_messages.txt", "a") as f:
+                    f.write(f"implementation {implementation_dto.openml_flow_id}: {e}\n")
+                with open("error_implementations.txt", "a") as f:
+                    f.write(f"{implementation_dto.openml_flow_id}\n")
+
+            finally:
+                count += 1
+                offset_id = implementation_dto.openml_flow_id
 
         await task.save(link_rule=WriteRules.DO_NOTHING)
 

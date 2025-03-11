@@ -26,14 +26,23 @@ async def process_all_models(task: Task, recursive: bool = False, head: int = No
             task_runs_df = task_runs_df.head(head)
 
         for run_dto in task_runs_df.itertuples(index=False):
-            run_dto = RunDto(*run_dto)
+            try:
+                run_dto = RunDto(*run_dto)
 
-            print(f"Processing run {run_dto.openml_run_id}")
+                print(f"Processing run {run_dto.openml_run_id}")
 
-            await _ensure_model_exists(run_dto, task)
+                await _ensure_model_exists(run_dto, task)
 
-            count += 1
-            offset_id = run_dto.openml_run_id
+            except Exception as e:
+                print(f"Error processing run {run_dto.openml_run_id}: {e}")
+                with open("error_messages.txt", "a") as f:
+                    f.write(f"run {run_dto.openml_run_id}: {e}\n")
+                with open("error_runs.txt", "a") as f:
+                    f.write(f"{run_dto.openml_run_id}\n")
+
+            finally:
+                count += 1
+                offset_id = run_dto.openml_run_id
 
         if head is not None and count >= head:
             break

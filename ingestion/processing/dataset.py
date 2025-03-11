@@ -23,17 +23,24 @@ async def process_all_datasets(dataset_ids: List[int] = None, recursive: bool = 
             datasets_df = datasets_df.head(head-count)
 
         for dataset_dto in datasets_df.itertuples(index=False):
-            dataset_dto = DatasetDto(*dataset_dto)
+            try:
+                dataset_dto = DatasetDto(*dataset_dto)
 
-            print(f"Processing dataset {dataset_dto.openml_dataset_id}")
+                print(f"Processing dataset {dataset_dto.openml_dataset_id}")
 
-            dataset: Dataset = await _ensure_dataset_exists(dataset_dto)
+                dataset: Dataset = await _ensure_dataset_exists(dataset_dto)
 
-            if recursive:
-                await process_all_tasks(dataset, recursive, head)
-
-            count += 1
-            offset_id = dataset_dto.openml_dataset_id
+                if recursive:
+                    await process_all_tasks(dataset, recursive, head)
+            except Exception as e:
+                print(f"Error processing dataset {dataset_dto.openml_dataset_id}: {e}")
+                with open("error_messages.txt", "a") as f:
+                    f.write(f"dataset {dataset_dto.openml_dataset_id}: {e}\n")
+                with open("error_datasets.txt", "a") as f:
+                    f.write(f"{dataset_dto.openml_dataset_id}\n")
+            finally:
+                count += 1
+                offset_id = dataset_dto.openml_dataset_id
 
         if head is not None and count >= head:
             break

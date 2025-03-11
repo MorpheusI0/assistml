@@ -25,18 +25,27 @@ async def process_all(dataset: Dataset, recursive: bool = False, head: int = Non
             dataset_tasks_df = dataset_tasks_df.head(head-count)
 
         for task_dto in dataset_tasks_df.itertuples(index=False):
-            task_dto = TaskDto(*task_dto)
+            try:
+                task_dto = TaskDto(*task_dto)
 
-            print(f"Processing task {task_dto.openml_task_id}")
+                print(f"Processing task {task_dto.openml_task_id}")
 
-            task: Task = await _ensure_task_exists(task_dto, dataset)
+                task: Task = await _ensure_task_exists(task_dto, dataset)
 
-            if recursive:
-                await process_all_implementations(task, recursive, head)
-                await process_all_models(task, recursive, head)
+                if recursive:
+                    await process_all_implementations(task, recursive, head)
+                    await process_all_models(task, recursive, head)
 
-            count += 1
-            offset_id = task_dto.openml_task_id
+            except Exception as e:
+                print(f"Error processing task {task_dto.openml_task_id}: {e}")
+                with open("error_messages.txt", "a") as f:
+                    f.write(f"task {task_dto.openml_task_id}: {e}\n")
+                with open("error_tasks.txt", "a") as f:
+                    f.write(f"{task_dto.openml_task_id}\n")
+
+            finally:
+                count += 1
+                offset_id = task_dto.openml_task_id
 
         if head is not None and count >= head:
             break
