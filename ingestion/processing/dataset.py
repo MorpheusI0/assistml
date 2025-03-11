@@ -5,6 +5,7 @@ from sklearn.datasets import fetch_openml
 
 from common.data import Dataset
 from common.data.dataset import TargetFeatureType, Info
+from config import Config
 from mlsea import DatasetDto, mlsea_repository as mlsea
 from processing.task import process_all as process_all_tasks
 
@@ -55,7 +56,7 @@ async def _ensure_dataset_exists(dataset_dto: DatasetDto):
     return dataset
 
 def _profile_dataset(openml_dataset_id, default_target_feature_label: str):
-    raw_data = fetch_openml(data_id=openml_dataset_id, parser='auto', as_frame=True)
+    raw_data = fetch_openml(data_id=openml_dataset_id, parser='auto', as_frame=True, cache=Config.OPENML_USE_CACHE)
     df: pd.DataFrame = raw_data['frame']
     details = raw_data['details']
 
