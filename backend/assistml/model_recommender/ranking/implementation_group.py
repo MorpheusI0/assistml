@@ -1,17 +1,19 @@
 import asyncio
 from collections import defaultdict
+from sys import implementation
 from typing import DefaultDict, Dict, List, Optional, Tuple, Union
 
 from beanie import Link, PydanticObjectId
+from pandas.io.pytables import performance_doc
 
 from assistml.model_recommender.ranking.hyperparameter_analytics import HyperparameterAnalytics
 from assistml.model_recommender.ranking.implementation_dataset_group import ImplementationDatasetGroup
-from assistml.model_recommender.ranking.metric_analytics import MetricAnalytics
+from assistml.model_recommender.ranking.metric_analytics import DescriptiveStatistics, MetricAnalytics
 from assistml.utils.document_cache import DocumentCache
-from common.data import Implementation
-from common.data import Dataset
+from common.data import Dataset, Implementation, Query
 from common.data.model import Metric
 from common.data.projection.model import FullyJoinedModelView
+from common.data.query import ImplementationGroupReport, PerformanceReport
 
 
 class ImplementationGroup:
@@ -22,7 +24,8 @@ class ImplementationGroup:
     _hyperparameter_analytics: HyperparameterAnalytics
     _check_dataset_lock: DefaultDict[PydanticObjectId, asyncio.Lock]
     _ranked_dataset_groups: Optional[List[Tuple[float, ImplementationDatasetGroup]]]
-    _aggregated_metrics: Optional[Dict[Metric, Dict[str, float]]]
+    _aggregated_metrics: Optional[Dict[Metric, DescriptiveStatistics]]
+    _overall_score: Optional[float]
 
     def __init__(
             self,
@@ -38,6 +41,7 @@ class ImplementationGroup:
         self._check_dataset_lock = defaultdict(asyncio.Lock)
         self._ranked_dataset_groups = None
         self._aggregated_metrics = None
+        self._overall_score = None
 
     @classmethod
     async def create(
@@ -87,25 +91,65 @@ class ImplementationGroup:
             dataset_group_metrics.append((similarity_score, best_configuration_metrics))
         self._aggregated_metrics = self._metric_analytics.aggregate_list(dataset_group_metrics)
 
-    def get_aggregated_metrics(self, selected_metrics: List[Metric]) -> Dict[Metric, Dict[str, float]]:
+    def get_aggregated_metrics(self, selected_metrics: List[Metric]) -> Dict[Metric, DescriptiveStatistics]:
         if self._aggregated_metrics is None:
             self._aggregate_metrics(selected_metrics)
         return self._aggregated_metrics
 
-    def calculate_overall_score(self, selected_metrics: List[Metric], lambda_penalty: float = 0.5) -> float:
+    def _calculate_overall_score(self, selected_metrics: List[Metric], lambda_penalty: float = 0.5) -> float:
         if self._aggregated_metrics is None:
             self._aggregate_metrics(selected_metrics)
         metric_weights = {metric: 1.0 if metric in selected_metrics else 0.0 for metric in Metric}
         score_vector = self._metric_analytics.calculate_overall_score(self._aggregated_metrics, metric_weights)
         return score_vector['mean'] - lambda_penalty * score_vector['std']
 
-    def generate_report(self, top_n: int = 3) -> List[Dict[Metric, Dict[str, float]]]:
+    def get_overall_score(self, selected_metrics: List[Metric], lambda_penalty: float = 0.5) -> float:
+        if self._overall_score is None:
+            self._overall_score = self._calculate_overall_score(selected_metrics, lambda_penalty)
+        return self._overall_score
+
+    async def _count_hyperparameters(self, implementation: Implementation) -> int:
+        count = len(implementation.parameters)
+        if implementation.components:
+            for component_link in implementation.components.values():
+                component = await self._document_cache.get_implementation(component_link)
+                count += await self._count_hyperparameters(component)
+        return count
+
+    async def get_hyperparameter_count(self) -> int:
+        return await self._count_hyperparameters(self._implementation)
+
+    async def generate_report(self, query: Query, top_n: int = 3, top_m: int = 3) -> ImplementationGroupReport:
         if self._ranked_dataset_groups is None:
             raise ValueError("Rank datasets first")
-        return [
-            dataset_group.generate_report()
-            for _, dataset_group in self._ranked_dataset_groups[:top_n]
-        ]
+        selected_metrics = list(query.preferences.keys())
+        aggregated_metrics = self.get_aggregated_metrics(selected_metrics)
+        performance_reports = {
+            metric: PerformanceReport(
+                quantile_label="TODO_Label",  # TODO: implement quantile calculation
+                normalized_mean=aggregated_metrics[metric]["mean"],
+                normalized_std=aggregated_metrics[metric]["std"],
+                mean=self._metric_analytics.denormalize_metric_value(metric, aggregated_metrics[metric]["mean"]),
+                std=self._metric_analytics.denormalize_metric_value(metric, aggregated_metrics[metric]["std"])
+            )
+            for metric in selected_metrics if metric in aggregated_metrics
+        }
+        implementation_report = ImplementationGroupReport(
+            name=self._implementation.title,
+            platform=self._implementation.platform,
+            overall_score=self.get_overall_score(selected_metrics),
+            nr_hparams=await self.get_hyperparameter_count(),
+            nr_dependencies=len(self._implementation.dependencies),
+            implementation=Link(self._implementation.to_ref(), Implementation),
+            performance=performance_reports,
+            dataset_groups=[
+                await dataset_group.generate_report(query, top_m)
+                for _, dataset_group in self._ranked_dataset_groups[:top_n]
+            ],
+            default_configuration=None,
+            class_name=self._implementation.class_name
+        )
+        return implementation_report
 
     def __repr__(self):
         return f"ImplementationGroup(implementation={self._implementation.title}, dataset_groups={self._dataset_groups})"

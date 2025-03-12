@@ -35,6 +35,11 @@ class MetricAnalytics:
             raise ValueError(f"Unknown metric: {metric}")
         return self._normalizers[metric].transform(value)
 
+    def denormalize_metric_value(self, metric: Metric, normalized_value: float) -> Any:
+        if metric not in self._normalizers:
+            raise ValueError(f"Unknown metric: {metric}")
+        return self._normalizers[metric].inverse_transform(normalized_value)
+
     @staticmethod
     def _calculate_statistics(weighted_normalized_value_list: List[Tuple[float, float]]) -> DescriptiveStatistics:
         total_weight = sum(weight for weight, _ in weighted_normalized_value_list)

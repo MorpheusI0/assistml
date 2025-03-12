@@ -9,21 +9,32 @@ from assistml.model_recommender.ranking.implementation_group import Implementati
 from assistml.model_recommender.ranking.metric_analytics import MetricAnalytics
 from assistml.utils.document_cache import DocumentCache
 from common.data import Dataset, Implementation, Query
+from common.data.query import Summary, Report as FinalReport
 from common.data.model import Metric
 from common.data.projection.model import FullyJoinedModelView
 
 
-class DistrustPointCategory(str, Enum):
-    DATASET_SIMILARITY = "dataset_similarity"
-    METRICS_SUPPORT = "metrics_support"
-    CLUSTER_INSIDE_RATIO_ACC = "cluster_inside_ratio_acc"
-    CLUSTER_INSIDE_RATIO_NACC = "cluster_inside_ratio_nacc"
+class DistrustPointCategory(Enum):
+    DATASET_SIMILARITY = "dataset_similarity", 3
+    METRICS_SUPPORT = "metrics_support", 3
+    CLUSTER_INSIDE_RATIO_ACC = "cluster_inside_ratio_acc", 3
+    CLUSTER_INSIDE_RATIO_NACC = "cluster_inside_ratio_nacc", 3
+
+    def __new__(cls, value: str, max_points: int):
+        obj = object.__new__(cls)
+        obj._value_ = value
+        obj.max_points = max_points
+        return obj
+
+    def __hash__(self):
+        return hash(self.value)
 
 ModelGroup = Literal['acceptable_models', 'nearly_acceptable_models']
 
 class Report:
     _query: Query
     _distrust_points: Dict[DistrustPointCategory, int]
+    _models_count: Dict[ModelGroup, int]
     _implementation_groups: Dict[ModelGroup, Optional[Dict[PydanticObjectId, ImplementationGroup]]]
     _implementation_groups_locks: Dict[ModelGroup, DefaultDict[PydanticObjectId, asyncio.Lock]]
     _document_cache: DocumentCache
@@ -34,6 +45,7 @@ class Report:
     def __init__(self, query: Query):
         self._query = query
         self._distrust_points = {category: 0 for category in DistrustPointCategory}
+        self._models_count = {}
         self._implementation_groups = {
             "acceptable_models": None,
             "nearly_acceptable_models": None,
@@ -77,6 +89,7 @@ class Report:
         }
         tasks = []
         for model_group, models in model_groups.items():
+            self._models_count[model_group] = len(models)
             self._implementation_groups[model_group] = {}
             for model in models:
                 implementation = model.setup.implementation
@@ -109,22 +122,38 @@ class Report:
         for model_group, implementation_groups in self._implementation_groups.items():
             ranked_implementation_groups = []
             for implementation_group in implementation_groups.values():
-                overall_score = implementation_group.calculate_overall_score(selected_metrics)
+                overall_score = implementation_group.get_overall_score(selected_metrics)
                 ranked_implementation_groups.append((overall_score, implementation_group))
             ranked_implementation_groups.sort(key=lambda x: x[0], reverse=True)
             self._ranked_implementation_groups[model_group] = ranked_implementation_groups
         
-    async def generate_report(self, top_k: int = 5, top_n: int = 3):
-        selected_metrics = [metric for metric in self._query.preferences.keys()]
+    async def generate_report(self, top_k: int = 5, top_n: int = 3, top_m: int = 3) -> FinalReport:
+        selected_metrics = list(self._query.preferences.keys())
         async with self._rank_implementations_lock:
             if self._ranked_implementation_groups is None:
                 await self._rank_implementations(selected_metrics)
-        reports = {}
-        for model_group, ranked_implementation_groups in self._ranked_implementation_groups.items():
-            reports[model_group] = [
-                implementation_group.generate_report(top_n)
-                for score, implementation_group in ranked_implementation_groups[:top_k]
-            ]
-        return reports
+
+        distrust_total = sum(self._distrust_points.values())
+        distrust_base = sum([category.max_points for category in DistrustPointCategory])
+        summary = Summary(
+            acceptable_models=self._models_count["acceptable_models"],
+            nearly_acceptable_models=self._models_count["nearly_acceptable_models"],
+            distrust_score=distrust_total / distrust_base,
+            warnings=self.get_distrust_warnings()
+        )
+        acceptable_models = [
+            await implementation_group.generate_report(self._query, top_n, top_m)
+            for _, implementation_group in self._ranked_implementation_groups["acceptable_models"][:top_k]
+        ]
+        nearly_acceptable_models = [
+            await implementation_group.generate_report(self._query, top_n, top_m)
+            for _, implementation_group in self._ranked_implementation_groups["nearly_acceptable_models"][:top_k]
+        ]
+        final_report = FinalReport(
+            summary=summary,
+            acceptable_models=acceptable_models,
+            nearly_acceptable_models=nearly_acceptable_models
+        )
+        return final_report
         
             

@@ -2,14 +2,17 @@ from collections import defaultdict
 from typing import Any, DefaultDict, Dict, List, Optional, Tuple, Union
 
 from beanie import Link
+from bson import DBRef
 
 from assistml.model_recommender.ranking.hyperparameter_analytics import HyperparameterAnalytics
 from assistml.model_recommender.ranking.hyperparameter_configuration import HyperparameterConfiguration
-from assistml.model_recommender.ranking.metric_analytics import MetricAnalytics
+from assistml.model_recommender.ranking.metric_analytics import DescriptiveStatistics, MetricAnalytics
 from assistml.utils.document_cache import DocumentCache
 from common.data import Dataset, Implementation
 from common.data.model import Metric
 from common.data.projection.model import FullyJoinedModelView
+from common.data.query import HyperparameterConfigurationReport, ImplementationDatasetGroupReport, \
+    PartialHyperparameterConfiguration, PerformanceReport, Query
 
 
 class ImplementationDatasetGroup:
@@ -23,7 +26,7 @@ class ImplementationDatasetGroup:
     _document_cache: DocumentCache
     _metric_analytics: MetricAnalytics
     _hyperparameter_analytics: HyperparameterAnalytics
-    _aggregated_metrics_by_configuration: Optional[Dict[HyperparameterConfiguration, Dict[Metric, Any]]]
+    _aggregated_metrics_by_configuration: Optional[Dict[HyperparameterConfiguration, Dict[Metric, DescriptiveStatistics]]]
     _aggregated_metrics: Optional[Dict[Metric, Any]]
     _ranked_configurations: Optional[List[Tuple[float, HyperparameterConfiguration]]]
 
@@ -108,10 +111,10 @@ class ImplementationDatasetGroup:
             self._rank_configuration_groups(selected_metrics)
         return self._ranked_configurations[0][1]
 
-    def get_top_n_configurations(self, selected_metrics: List[Metric], n: int) -> List[HyperparameterConfiguration]:
+    def get_top_m_configurations(self, selected_metrics: List[Metric], m: int) -> List[HyperparameterConfiguration]:
         if self._ranked_configurations is None:
             self._rank_configuration_groups(selected_metrics)
-        return [configuration for _, configuration in self._ranked_configurations[:n]]
+        return [configuration for _, configuration in self._ranked_configurations[:m]]
 
     def get_metrics_of_best_configuration(self, selected_metrics: List[Metric]) -> Dict[Metric, Dict[str, float]]:
         if self._ranked_configurations is None:
@@ -121,16 +124,36 @@ class ImplementationDatasetGroup:
     def get_dataset_similarity(self, dataset: Dataset) -> float:
         return self._dataset.similarity(dataset)
 
-    def generate_report(self):
-        # temporary implementation
-        return {
-            "implementation": self._implementation.title,
-            "dataset": self._dataset.info.dataset_name,
-            "dataset_similarity": self.get_dataset_similarity(self._dataset),
-            "best_configuration": self._ranked_configurations[0][1],
-            "models": self._models,
-            "ranked_configurations": self._ranked_configurations
-        }
+    async def generate_report(self, query: Query, top_m) -> ImplementationDatasetGroupReport:
+        query_dataset = await self._document_cache.get_dataset(query.dataset)
+        selected_metrics = list(query.preferences.keys())
+        configurations = [
+            HyperparameterConfigurationReport(
+                hyperparameters=[PartialHyperparameterConfiguration(
+                    implementation=Link(DBRef(Implementation.get_collection_name(), implementation_id), Implementation),
+                    hyperparameters=hyperparameters
+                ) for implementation_id, hyperparameters in configuration.get_configuration().items()],
+                performance={
+                    metric: PerformanceReport(
+                        quantile_label="Q1",  # TODO: implement quantile calculation
+                        normalized_mean=metric_values['mean'],
+                        normalized_std=metric_values['std'],
+                        mean=self._metric_analytics.denormalize_metric_value(metric, metric_values['mean']),
+                        std=self._metric_analytics.denormalize_metric_value(metric, metric_values['std'])
+                    ) for metric, metric_values in self._aggregated_metrics_by_configuration[configuration].items()
+                }
+            ) for configuration in self.get_top_m_configurations(selected_metrics, top_m)
+        ]
+        report = ImplementationDatasetGroupReport(
+            dataset=Link(self._dataset.to_ref(), Dataset),
+            dataset_name=self._dataset.info.dataset_name,
+            dataset_similarity=self.get_dataset_similarity(query_dataset),
+            dataset_features=self._dataset.info.nr_total_features,
+            dataset_observations=self._dataset.info.observations,
+            model_count=len(self._models),
+            configurations=configurations
+        )
+        return report
 
     def __repr__(self) -> str:
         return f"ImplementationDatasetGroup(implementation={self._implementation.title}, dataset={self._dataset.info.dataset_name}, models={len(self._models)})"

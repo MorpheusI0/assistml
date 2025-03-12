@@ -1,7 +1,7 @@
 from collections import OrderedDict
 from typing import Dict, Any
 
-from beanie import PydanticObjectId
+from bson import ObjectId
 
 from assistml.model_recommender.ranking.hyperparameter_analytics import HyperparameterAnalytics
 from assistml.utils.document_cache import DocumentCache
@@ -9,16 +9,16 @@ from common.data.model import Setup
 
 
 class HyperparameterConfiguration:
-    _configuration: OrderedDict[PydanticObjectId, OrderedDict[str, Any]]
+    _configuration: OrderedDict[ObjectId, OrderedDict[str, Any]]
     _hyperparameter_analytics: HyperparameterAnalytics
 
-    def __init__(self, configuration: Dict[PydanticObjectId, Dict[str, Any]], hyperparameter_analytics: HyperparameterAnalytics):
+    def __init__(self, configuration: Dict[ObjectId, Dict[str, Any]], hyperparameter_analytics: HyperparameterAnalytics):
         self._configuration = HyperparameterConfiguration.order_configuration(configuration)
         self._hyperparameter_analytics = hyperparameter_analytics
 
     @classmethod
     async def from_setup(cls, setup: Setup, document_cache: DocumentCache, hyperparameter_analytics: HyperparameterAnalytics) -> "HyperparameterConfiguration":
-        configuration: Dict[PydanticObjectId, Dict[str, Any]] = {}
+        configuration: Dict[ObjectId, Dict[str, Any]] = {}
         for hyperparameter in setup.hyper_parameters:
             parameter_implementation = await document_cache.get_implementation(hyperparameter.implementation)
             if hyperparameter.name not in parameter_implementation.parameters:
@@ -31,7 +31,7 @@ class HyperparameterConfiguration:
         return cls(configuration, hyperparameter_analytics)
 
     @staticmethod
-    def order_configuration(configuration: Dict[PydanticObjectId, Dict[str, Any]]) -> OrderedDict[PydanticObjectId, OrderedDict[str, Any]]:
+    def order_configuration(configuration: Dict[ObjectId, Dict[str, Any]]) -> OrderedDict[ObjectId, OrderedDict[str, Any]]:
         sorted_implementation_ids = sorted(configuration.keys())
         sorted_configuration = OrderedDict()
         for implementation_id in sorted_implementation_ids:

@@ -42,7 +42,7 @@ def _calculate_thresholds(
 
     return thresholds_acc, thresholds_nacc
 
-def _calculate_distrust_points(inside_ratio: float) -> int:
+def _calculate_inside_cluster_distrust_points(inside_ratio: float) -> int:
     """
     Calculate distrust points based on the inside ratio.
 
@@ -57,6 +57,25 @@ def _calculate_distrust_points(inside_ratio: float) -> int:
     elif 0.5 <= inside_ratio < 1:
         return 1
     elif 0 < inside_ratio < 0.5:
+        return 2
+    else:
+        return 3
+
+def _calculate_metrics_distrust_points(used_metric_ratio: float) -> int:
+    """
+    Calculate distrust points based on the ratio of used metrics.
+
+    Parameters:
+    used_metric_ratio (float): Ratio of used metrics to requested metrics.
+
+    Returns:
+    int: Distrust points.
+    """
+    if used_metric_ratio == 1:
+        return 0
+    elif 0.67 <= used_metric_ratio < 1:
+        return 1
+    elif 0.33 < used_metric_ratio < 0.67:
         return 2
     else:
         return 3
@@ -150,7 +169,8 @@ def cluster_models(
 
     raw_metrics_df = pd.DataFrame([model.metrics for model in selected_models])
     metrics_df, metrics = _filter_metrics_df(raw_metrics_df, preferences)
-    distrust_pts_metrics = len(preferences) - len(metrics)
+    used_metric_ratio = len(metrics) / len(preferences)
+    distrust_pts_metrics = _calculate_metrics_distrust_points(used_metric_ratio)
 
     dbscan = DBSCAN(eps=0.05, min_samples=3, algorithm='kd_tree')
     metrics_df['dbscan'] = dbscan.fit_predict(metrics_df)
@@ -176,7 +196,7 @@ def cluster_models(
 
     # Calculate the inside ratio for acceptable clusters (fraction of clusters with perfect fit)
     inside_ratio_acc = sum(1 for fit in clusters_acc.values() if fit == 1) / len(clusters_acc) if len(clusters_acc) > 0 else 0
-    distrust_pts_acc = _calculate_distrust_points(inside_ratio_acc)
+    distrust_pts_acc = _calculate_inside_cluster_distrust_points(inside_ratio_acc)
 
     # Compute cluster fitness for the Nearly Acceptable region:
     # condition: value is between the nearly acceptable threshold and the acceptable threshold.
@@ -190,7 +210,7 @@ def cluster_models(
 
     if len(clusters_nacc) > 0:
         inside_ratio_nacc = sum(1 for fit in clusters_nacc.values() if fit == 1) / len(clusters_nacc)
-        distrust_pts_nacc = _calculate_distrust_points(inside_ratio_nacc)
+        distrust_pts_nacc = _calculate_inside_cluster_distrust_points(inside_ratio_nacc)
     else:
         distrust_pts_nacc = None
 

@@ -1,13 +1,14 @@
 import time
-from typing import List
+
+from beanie import WriteRules
+from quart import current_app
 
 from assistml.model_recommender.cluster import cluster_models
-from assistml.model_recommender.ranking import Report
 from assistml.model_recommender.query import handle_query
+from assistml.model_recommender.ranking import Report
 from assistml.model_recommender.ranking.report import DistrustPointCategory
 from assistml.model_recommender.select import select_models_on_dataset_similarity
 from common.dto import ReportRequestDto
-from common.data.model import Metric
 
 
 async def generate_report(request: ReportRequestDto):
@@ -29,8 +30,12 @@ async def generate_report(request: ReportRequestDto):
     await report.set_models(acceptable_models, nearly_acceptable_models)
     report.set_distrust_points(DistrustPointCategory.METRICS_SUPPORT, distrust_pts_metrics)
     report.set_distrust_points(DistrustPointCategory.CLUSTER_INSIDE_RATIO_ACC, distrust_pts_acc)
-    report.set_distrust_points(DistrustPointCategory.CLUSTER_INSIDE_RATIO_NACC, distrust_pts_nacc)
+    report.set_distrust_points(DistrustPointCategory.CLUSTER_INSIDE_RATIO_NACC, distrust_pts_nacc or 0)
 
-    selected_metrics: List[Metric] = list(query.preferences.keys())
-    final_report = await report.generate_report()
-    pass
+    query.report = await report.generate_report()
+    await query.save(link_rule=WriteRules.DO_NOTHING)
+
+    end_time = time.time()
+    time_taken = end_time - start_time
+    current_app.logger.info(f"Time taken for end to end execution {time_taken}")
+    return query.report
