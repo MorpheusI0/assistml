@@ -3,7 +3,6 @@ from motor.motor_asyncio import AsyncIOMotorClient
 
 from config import Config
 from .dataset import Dataset
-from .enriched_model import EnrichedModel
 from .implementation import Implementation
 from .model import Model
 from .query import Query
@@ -27,5 +26,5 @@ class ObjectDocumentMapper:
         await init_beanie(
             database=self._db,
             document_models=[Dataset, Task, ClassificationTask, RegressionTask, ClusteringTask, LearningCurveTask,
-                             Implementation, Model, Query, EnrichedModel]
+                             Implementation, Model, Query]
         )

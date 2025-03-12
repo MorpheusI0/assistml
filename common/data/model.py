@@ -12,7 +12,7 @@ from .utils import CustomBaseModel, alias_generator, encode_dict
 
 class Parameter(CustomBaseModel):
     name: str
-    data_type: str
+    data_type: Optional[str] = None
     implementation: Link[Implementation]
     value: Any
     default_value: Optional[Any] = None
@@ -61,35 +61,10 @@ class Setup(CustomBaseModel):
         populate_by_name=True
 
 
-class EnrichedModel(CustomBaseModel):
-    fam_name: str
-    rows: str
-    columns_change: str
-
-    numeric_ratio: float
-    categorical_ratio: float
-    datetime_ratio: float
-    text_ratio: float
-
-    training_time_std: float
-    performance_score: float
-    performance_gap: int
-
-    quantile_accuracy: str
-    quantile_error: str
-    quantile_precision: str
-    quantile_recall: str
-    quantile_training_time: str
-
-    nr_hyperparams: int
-    nr_hyperparams_label: str
-
-
 class Model(Document):
     mlsea_uri: Optional[str] = None
     setup: Setup
     metrics: Dict[Metric, Any]
-    enriched_model: Optional[EnrichedModel] = None
 
     class Settings:
         name = "models"

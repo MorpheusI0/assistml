@@ -41,7 +41,7 @@ class Software(CustomBaseModel):
 
 class Parameter(CustomBaseModel):
     default_value: Optional[Any] = None
-    type: str
+    type: Optional[str] = None
     description: Optional[str] = None
 
 class Implementation(Document):
@@ -67,7 +67,6 @@ class Implementation(Document):
         arbitrary_types_allowed = True
         populate_by_name = True
         alias_generator = alias_generator
-        use_enum_values = True
 
 #from .task import Task
 #Implementation.update_forward_refs()

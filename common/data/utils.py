@@ -15,13 +15,6 @@ def alias_generator(field_name: str) -> str:
 
     return to_camel(field_name)
 
-class CustomBaseModel(BaseModel):
-
-    class Config:
-        ser_json_inf_nan = 'constants'
-        populate_by_name = True
-        alias_generator = alias_generator
-
 def encode_dict(d: dict) -> dict:
     """
     Encode a dictionary. By default, Beanie can't handle dictionaries with non-string keys.
@@ -37,3 +30,10 @@ def encode_dict(d: dict) -> dict:
         encoded_value = encoder.encode(v)
         result[encoded_key] = encoded_value
     return result
+
+class CustomBaseModel(BaseModel):
+
+    class Config:
+        ser_json_inf_nan = 'constants'
+        populate_by_name = True
+        alias_generator = alias_generator
