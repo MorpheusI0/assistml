@@ -2,3 +2,5 @@ sparql_dataframe
 beanie
 pydantic
 openml
+python-dotenv
+nltk
