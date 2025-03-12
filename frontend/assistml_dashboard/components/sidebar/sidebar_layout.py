@@ -3,10 +3,12 @@ import dash_bootstrap_components as dbc
 
 from assistml_dashboard.components.sidebar.dataset_characteristics_layout import create_dataset_characteristics
 from assistml_dashboard.components.sidebar.classifier_preferences_layout import create_classifier_preferences
+from assistml_dashboard.components.sidebar.task_characteristics_layout import create_task_characteristics
 
 
 async def create_sidebar():
     dataset_characteristics = create_dataset_characteristics()
+    task_characteristics = create_task_characteristics()
     classifier_preferences = await create_classifier_preferences()
 
     submit_button = html.Div([
@@ -28,6 +30,8 @@ async def create_sidebar():
         html.H5(children='Fill in required details and upload dataset', style={'font-weight': 'bold', }),
         html.Br(),
         dataset_characteristics,
+        html.Br(),
+        task_characteristics,
         html.Br(),
         classifier_preferences,
         submit_button,

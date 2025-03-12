@@ -12,16 +12,25 @@ from .utils import alias_generator
 Model = ForwardRef("Model")
 
 
-class TaskType(str, Enum):
-    SUPERVISED_CLASSIFICATION = "Supervised_Classification"
-    SUPERVISED_REGRESSION = "Supervised_Regression"
-    LEARNING_CURVE = "Learning_Curve"
-    SUPERVISED_DATASTREAM_CLASSIFICATION = "Supervised_Datastream_Classification"
-    CLUSTERING = "Clustering"
-    MACHINE_LEARNING_CHALLENGE = "Machine_Learning_Challenge"
-    SURVIVAL_ANALYSIS = "Survival_Analysis"
-    SUBGROUP_DISCOVERY = "Subgroup_Discovery"
-    MULTITASK_REGRESSION = "Multitask_Regression"
+class TaskType(Enum):
+    SUPERVISED_CLASSIFICATION = "Supervised_Classification", "Supervised Classification"
+    SUPERVISED_REGRESSION = "Supervised_Regression", "Supervised Regression"
+    LEARNING_CURVE = "Learning_Curve", "Learning Curve"
+    SUPERVISED_DATASTREAM_CLASSIFICATION = "Supervised_Datastream_Classification", "Supervised Datastream Classification"
+    CLUSTERING = "Clustering", "Clustering"
+    MACHINE_LEARNING_CHALLENGE = "Machine_Learning_Challenge", "Machine Learning Challenge"
+    SURVIVAL_ANALYSIS = "Survival_Analysis", "Survival Analysis"
+    SUBGROUP_DISCOVERY = "Subgroup_Discovery", "Subgroup Discovery"
+    MULTITASK_REGRESSION = "Multitask_Regression", "Multitask Regression"
+
+    def __new__(cls, value: str, display_name: str):
+        self = object.__new__(cls)
+        self._value_ = value
+        self.display_name = display_name
+        return self
+
+    def __hash__(self):
+        return hash(self.value)
 
 class Task(Document):
     mlsea_uri: Optional[str] = None

@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from common.dto import AnalyseDatasetRequestDto, AnalyseDatasetResponseDto, ReportRequestDto, ReportResponseDto
 from common.data.model import Metric
+from common.data.task import TaskType
 
 
 class BackendClient:
@@ -44,27 +45,28 @@ class BackendClient:
                 except ValidationError as e:
                     return None, f"Error while parsing response: {e}"
 
-    async def report(
+    async def query(
             self,
             class_feature_type,
             feature_type_list,
-            classification_output,
             preferences: dict[Metric, Any],
-            dataset_id: str, csv_filename
+            dataset_id: str,
+            csv_filename: str,
+            task_type: TaskType
     ) -> (Optional[ReportResponseDto], Optional[str]):
         feature_type_list = feature_type_list.replace(' ', '')
         feature_type_list = feature_type_list.replace("'", '')
         feature_type_list = feature_type_list.replace('"', '')
         feature_type_list = list(feature_type_list.strip('[]').split(','))
 
-        url = f"{self.base_url}/assistml"
+        url = f"{self.base_url}/query"
         query_dto = ReportRequestDto(
             classification_type=class_feature_type,
-            classification_output=classification_output,
             semantic_types=feature_type_list,
             preferences=preferences,
             dataset_id=dataset_id,
-            dataset_name=csv_filename
+            dataset_name=csv_filename,
+            task_type=task_type,
         )
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             response = await client.post(url=url, json=query_dto.model_dump(by_alias=True),

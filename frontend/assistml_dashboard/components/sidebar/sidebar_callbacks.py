@@ -7,6 +7,7 @@ from assistml_dashboard.components.sidebar.classifier_preferences_callbacks impo
 from assistml_dashboard.components.sidebar.dataset_characteristics_callbacks import register_dataset_characteristics_callbacks
 from common.dto import AnalyseDatasetResponseDto
 from common.data.model import Metric
+from common.data.task import TaskType
 
 
 def register_sidebar_callbacks(app: Flash):
@@ -30,14 +31,13 @@ def register_sidebar_callbacks(app: Flash):
             State('class_feature_type', 'value'),
             State('feature_type_list', 'value'),
             State('upload-data', 'filename'),
-
-            State('classification_type', 'value'),
+            State('task_type', 'value'),
             State('slider-values-store', 'data'),
         ],
         prevent_initial_call=True
     )
     async def trigger_data_profiler(submit_btn_clicks, serialized_dataframe, class_label, class_feature_type,
-                              feature_type_list, csv_filename, classification_type, stored_values):
+                              feature_type_list, csv_filename, task_type, stored_values):
         print(type(submit_btn_clicks))
         response: AnalyseDatasetResponseDto
         response, error = await backend.analyse_dataset(class_label, class_feature_type, feature_type_list)
@@ -51,7 +51,7 @@ def register_sidebar_callbacks(app: Flash):
 
         suggested_features = create_suggested_feature_layout(response.data_profile, class_feature_type)
         preferences = {Metric(metric): value for metric, value in stored_values.items()}
-        report, error = await backend.report(class_feature_type, feature_type_list, classification_type, preferences, response.db_write_status.dataset_id, csv_filename)
+        report, error = await backend.query(class_feature_type, feature_type_list, preferences, response.db_write_status.dataset_id, csv_filename, TaskType(task_type))
 
         if report is None:
             return response.db_write_status.status, suggested_features, f"Error while profiling the dataset: {error}"

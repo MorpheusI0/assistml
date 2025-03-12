@@ -79,7 +79,7 @@ def create_dataset_characteristics():
 
 
     return html.Div([
-    dbc.Label("Dataset Charactersitics",
+    dbc.Label("Dataset Characteristics",
               width=7, color="#FFFAF0",
               style={"text-align": "center", 'justify': 'left', 'font-size': '20px', 'font-weight': 'bold',
                      'width': '100%', "background-color": "transparent", "color": "black"}),
