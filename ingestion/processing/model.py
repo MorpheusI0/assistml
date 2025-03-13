@@ -14,9 +14,10 @@ from processing.implementation import find_or_create_implementation
 RUN_BASE_URI = "http://w3id.org/mlsea/openml/run/"
 EVALUATION_MEASURE_BASE_URI = "http://w3id.org/mlso/vocab/evaluation_measure#"
 
-async def process_all_models(task: Task, recursive: bool = False, head: int = None, offset_id: int = 0):
+async def process_all_models(task: Task, recursive: bool = False, head: int = None, offset: Optional[Dict[str, int]] = None):
     openml_task_id = int(task.mlsea_uri.split('/')[-1])
     count = 0
+    offset_id = offset.get('run', 0) if offset is not None else 0
     while True:
         task_runs_df = mlsea.retrieve_all_runs_from_openml_for_task(openml_task_id, batch_size=100, offset_id=offset_id)
         if task_runs_df.empty:

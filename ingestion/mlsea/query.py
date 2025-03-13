@@ -18,6 +18,8 @@ class Query(Enum):
         query (Template): The SPARQL query as a template.
         cached_filename_prefix (str): The prefix for the cache filename.
     """
+    RETRIEVE_TASK_ID_FOR_RUN_ID = sq.RETRIEVE_TASK_ID_FOR_RUN_ID, "openml_run_task_id"
+    RETRIEVE_DATASET_ID_FOR_TASK_ID = sq.RETRIEVE_DATASET_ID_FOR_TASK_ID, "openml_task_dataset_id"
     RETRIEVE_ALL_DATASETS_FROM_OPENML = sq.RETRIEVE_ALL_DATASETS_FROM_OPENML, "openml_dataset_all"
     RETRIEVE_BATCHED_DATASETS_FROM_OPENML = sq.RETRIEVE_BATCHED_DATASETS_FROM_OPENML, "openml_dataset_batched"
     RETRIEVE_DATASET_FROM_OPENML = sq.RETRIEVE_DATASET_FROM_OPENML, "openml_dataset"

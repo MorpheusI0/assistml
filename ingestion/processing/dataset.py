@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import pandas as pd
 from sklearn.datasets import fetch_openml
@@ -12,8 +12,9 @@ from processing.task import process_all as process_all_tasks
 from common.data_profiler import DataProfiler, ReadMode
 
 
-async def process_all_datasets(dataset_ids: List[int] = None, recursive: bool = False, head: int = None, offset_id: int = 0):
+async def process_all_datasets(dataset_ids: List[int] = None, recursive: bool = False, head: int = None, offset: Optional[Dict[str, int]] = None):
     count = 0
+    offset_id = offset.get('dataset', 0) if offset is not None else 0
     while True:
         datasets_df = mlsea.retrieve_datasets_from_openml(dataset_ids, batch_size=10, offset_id=offset_id)
         if datasets_df.empty:
@@ -31,7 +32,7 @@ async def process_all_datasets(dataset_ids: List[int] = None, recursive: bool = 
                 dataset: Dataset = await _ensure_dataset_exists(dataset_dto)
 
                 if recursive:
-                    await process_all_tasks(dataset, recursive, head)
+                    await process_all_tasks(dataset, recursive, head, offset)
             except Exception as e:
                 print(f"Error processing dataset {dataset_dto.openml_dataset_id}: {e}")
                 with open("error_messages.txt", "a") as f:

@@ -1,5 +1,5 @@
 import re
-from typing import Optional
+from typing import Dict, Optional
 
 import openml.tasks
 
@@ -13,9 +13,10 @@ from processing.implementation import process_all_implementations
 
 MLSO_TT_BASE_URI = "http://w3id.org/mlso/vocab/ml_task_type#"
 
-async def process_all(dataset: Dataset, recursive: bool = False, head: int = None, offset_id: int = 0):
+async def process_all(dataset: Dataset, recursive: bool = False, head: int = None, offset: Optional[Dict[str, int]] = None):
     dataset_id = int(dataset.info.mlsea_uri.split('/')[-1])
     count = 0
+    offset_id = offset.get('task', 0) if offset is not None else 0
     while True:
         dataset_tasks_df = mlsea.retrieve_all_tasks_from_openml_for_dataset(dataset_id, batch_size=100, offset_id=offset_id)
         if dataset_tasks_df.empty:
@@ -34,7 +35,7 @@ async def process_all(dataset: Dataset, recursive: bool = False, head: int = Non
 
                 if recursive:
                     await process_all_implementations(task, recursive, head)
-                    await process_all_models(task, recursive, head)
+                    await process_all_models(task, recursive, head, offset)
 
             except Exception as e:
                 print(f"Error processing task {task_dto.openml_task_id}: {e}")

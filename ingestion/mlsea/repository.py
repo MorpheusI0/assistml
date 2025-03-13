@@ -33,6 +33,30 @@ class MLSeaRepository:
         self._rate_limit = rate_limit  # maximum number of requests per minute
         self._last_request_time = 0
 
+    def retrieve_task_id_for_run_id(self, run_id: int):
+        """
+        Retrieves the task ID for a specific run.
+
+        Args:
+            run_id (int): The ID of the run.
+
+        Returns:
+            int: The ID of the task.
+        """
+        return int(self._execute_query_with_retries(Query.RETRIEVE_TASK_ID_FOR_RUN_ID, runId=run_id)["task_id"].iloc[0])
+
+    def retrieve_dataset_id_for_task_id(self, task_id: int):
+        """
+        Retrieves the dataset ID for a specific task.
+
+        Args:
+            task_id (int): The ID of the task.
+
+        Returns:
+            int: The ID of the dataset.
+        """
+        return int(self._execute_query_with_retries(Query.RETRIEVE_DATASET_ID_FOR_TASK_ID, taskId=task_id)["dataset_id"].iloc[0])
+
     def retrieve_datasets_from_openml(self, dataset_ids: List[int] = None, batch_size: int = 0, offset_id: int = 0):
         """
         Retrieves specific datasets from OpenML or all datasets if no ID is provided.

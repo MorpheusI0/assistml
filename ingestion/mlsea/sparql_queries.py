@@ -16,6 +16,34 @@ PREFIXES = """
     PREFIX mlsea_openml_run:<http://w3id.org/mlsea/openml/run/>
 """
 
+RETRIEVE_TASK_ID_FOR_RUN_ID = Template("""
+    $PREFIXES
+    SELECT
+        (?id AS ?task_id)
+    WHERE {
+        BIND(mlsea_openml_run:$runId AS ?r)
+        ?r a mls:Run .
+
+        ?r mls:achieves ?t .
+        ?t a mls:Task .
+        ?t purl:identifier ?id .
+    } LIMIT 1
+    """)
+
+RETRIEVE_DATASET_ID_FOR_TASK_ID = Template("""
+    $PREFIXES
+    SELECT
+        (?id AS ?dataset_id)
+    WHERE {
+        BIND(mlsea_openml_task:$taskId AS ?t)
+        ?t a mls:Task .
+        
+        ?t mls:definedOn ?ds .
+        ?ds a dcat:Dataset .
+        ?ds purl:identifier ?id .
+    } LIMIT 1
+    """)
+
 RETRIEVE_BATCHED_DATASETS_FROM_OPENML = Template("""
     $PREFIXES
     SELECT

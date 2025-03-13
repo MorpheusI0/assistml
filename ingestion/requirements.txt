@@ -4,3 +4,4 @@ pydantic
 openml
 python-dotenv
 nltk
+click
