@@ -10,21 +10,22 @@ from common.data.implementation import Platform
 from mlsea import mlsea_repository as mlsea
 from mlsea.dtos import RunDto
 from processing.implementation import find_or_create_implementation
+from processing.types import ProcessingOptions
 
 RUN_BASE_URI = "http://w3id.org/mlsea/openml/run/"
 EVALUATION_MEASURE_BASE_URI = "http://w3id.org/mlso/vocab/evaluation_measure#"
 
-async def process_all_models(task: Task, recursive: bool = False, head: int = None, offset: Optional[Dict[str, int]] = None):
+async def process_all_models(task: Task, options: ProcessingOptions = ProcessingOptions()):
     openml_task_id = int(task.mlsea_uri.split('/')[-1])
     count = 0
-    offset_id = offset.pop('run', 0) if offset is not None else 0
+    offset_id = options.offset.pop('run', 0) if options.offset is not None else 0
     while True:
         task_runs_df = mlsea.retrieve_all_runs_from_openml_for_task(openml_task_id, batch_size=100, offset_id=offset_id)
         if task_runs_df.empty:
             break
 
-        if head is not None:
-            task_runs_df = task_runs_df.head(head)
+        if options.head is not None:
+            task_runs_df = task_runs_df.head(options.head)
 
         for run_dto in task_runs_df.itertuples(index=False):
             try:
@@ -45,7 +46,7 @@ async def process_all_models(task: Task, recursive: bool = False, head: int = No
                 count += 1
                 offset_id = run_dto.openml_run_id
 
-        if head is not None and count >= head:
+        if options.head is not None and count >= options.head:
             break
 
 async def _ensure_model_exists(run_dto: RunDto, task: Task):

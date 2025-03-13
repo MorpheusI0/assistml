@@ -8,12 +8,14 @@ PREFIXES = """
     PREFIX prov:<http://www.w3.org/ns/prov#>
     PREFIX mls:<http://www.w3.org/ns/mls#>
     PREFIX mlso:<http://w3id.org/mlso/>
+    PREFIX mlso_tt:<http://w3id.org/mlso/vocab/ml_task_type#>
     PREFIX sd:<https://w3id.org/okn/o/sd#>
     
     PREFIX mlsea_openml_dataset:<http://w3id.org/mlsea/openml/dataset/>
     PREFIX mlsea_openml_task:<http://w3id.org/mlsea/openml/task/>
     PREFIX mlsea_openml_flow:<http://w3id.org/mlsea/openml/flow/>
     PREFIX mlsea_openml_run:<http://w3id.org/mlsea/openml/run/>
+    
 """
 
 RETRIEVE_TASK_ID_FOR_RUN_ID = Template("""
@@ -203,6 +205,71 @@ RETRIEVE_BATCHED_TASKS_FROM_OPENML_FOR_DATASET = Template("""
     } ORDER BY ?id
     LIMIT $limit
     """)
+
+RETRIEVE_ALL_TASKS_WITH_TYPE_FROM_OPENML_FOR_DATASET = Template("""
+    $PREFIXES
+    SELECT 
+        (?t AS ?mlsea_task_uri)
+        (?id AS ?openml_task_id)
+        (?t_url AS ?openml_task_url)
+        ?title
+        (?tt AS ?task_type)
+        (?ept AS ?evaluation_procedure_type)
+    WHERE {
+        BIND(mlsea_openml_dataset:$datasetId AS ?ds)
+        BIND(mlso_tt:$taskTypeConcept AS ?tt)
+
+        ?t a mls:Task .
+        ?t mls:definedOn ?ds .
+
+        ?t purl:identifier ?id .
+        ?t mlso:hasTaskType ?tt . 
+        ?t purl:title ?title .
+        ?t prov:atLocation ?t_url .
+
+        OPTIONAL {
+            ?es a mls:EvaluationSpecification .
+            ?es mls:defines ?t .
+            ?es mls:hasPart ?ep .
+            ?ep mlso:hasEvaluationProcedureType ?ept .
+        }
+    } ORDER BY ?id
+    """)
+
+RETRIEVE_BATCHED_TASKS_WITH_TYPE_FROM_OPENML_FOR_DATASET = Template(
+    """
+    $PREFIXES
+    SELECT 
+        (?t AS ?mlsea_task_uri)
+        (?id AS ?openml_task_id)
+        (?t_url AS ?openml_task_url)
+        ?title
+        (?tt AS ?task_type)
+        (?ept AS ?evaluation_procedure_type)
+    WHERE {
+        BIND(mlsea_openml_dataset:$datasetId AS ?ds)
+        BIND(mlso_tt:$taskTypeConcept AS ?tt)
+
+        ?t a mls:Task .
+        ?t mls:definedOn ?ds .
+
+        ?t purl:identifier ?id .
+        ?t mlso:hasTaskType ?tt . 
+        ?t purl:title ?title .
+        ?t prov:atLocation ?t_url .
+
+        OPTIONAL {
+            ?es a mls:EvaluationSpecification .
+            ?es mls:defines ?t .
+            ?es mls:hasPart ?ep .
+            ?ep mlso:hasEvaluationProcedureType ?ept .
+        }
+
+        FILTER (?id > $offsetId)
+    } ORDER BY ?id
+    LIMIT $limit
+    """
+    )
 
 RETRIEVE_ALL_EVALUATION_PROCEDURE_TYPES_FROM_OPENML_FOR_TASK = Template("""
     $PREFIXES

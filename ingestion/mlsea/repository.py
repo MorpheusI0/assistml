@@ -1,11 +1,12 @@
 import os
 import time
-from typing import List
+from typing import List, Optional
 
 import pandas as pd
 import sparql_dataframe
 
 from config import Config
+from common.data.task import TaskType
 from .query import Query
 
 
@@ -76,7 +77,7 @@ class MLSeaRepository:
         dataset_ids = " ".join([f"mlsea_openml_dataset:{dataset_id}" for dataset_id in dataset_ids])
         return self._execute_query_with_retries(Query.RETRIEVE_DATASETS_FROM_OPENML, datasetId=dataset_ids)
 
-    def retrieve_all_tasks_from_openml_for_dataset(self, dataset_id: int, batch_size: int = 0, offset_id: int = 0):
+    def retrieve_all_tasks_from_openml_for_dataset(self, dataset_id: int, batch_size: int = 0, offset_id: int = 0, task_type: Optional[TaskType] = None):
         """
         Retrieves all tasks from OpenML for a specific dataset.
 
@@ -84,10 +85,23 @@ class MLSeaRepository:
             dataset_id (int): The ID of the dataset.
             batch_size (int, optional): The number of tasks to retrieve in a batch. Defaults to 0, which means all tasks.
             offset_id (int, optional): The offset from which to start retrieving tasks (exclusively). Defaults to 0.
+            task_type (TaskType, optional): The type of the tasks to retrieve. Defaults to None, which means all tasks.
 
         Returns:
             pd.DataFrame: The DataFrame with the retrieved tasks.
         """
+        if task_type is not None:
+            task_type_concept = task_type.value
+            # MLSO-TT is not consistent
+            if task_type in [TaskType.SURVIVAL_ANALYSIS, TaskType.SUBGROUP_DISCOVERY, TaskType.MACHINE_LEARNING_CHALLENGE]:
+                task_type_concept = task_type_concept.replace("_", "")
+            if task_type == TaskType.LEARNING_CURVE:
+                task_type_concept += "_Estimation"
+
+            if batch_size > 0:
+                return self._execute_query_with_retries(Query.RETRIEVE_BATCHED_TASKS_WITH_TYPE_FROM_OPENML_FOR_DATASET, datasetId=dataset_id, taskTypeConcept=task_type_concept, limit=batch_size, offsetId=offset_id)
+            return self._execute_query_with_retries(Query.RETRIEVE_ALL_TASKS_WITH_TYPE_FROM_OPENML_FOR_DATASET, datasetId=dataset_id, taskTypeConcept=task_type_concept)
+
         if batch_size > 0:
             return self._execute_query_with_retries(Query.RETRIEVE_BATCHED_TASKS_FROM_OPENML_FOR_DATASET, datasetId=dataset_id, limit=batch_size, offsetId=offset_id)
         return self._execute_query_with_retries(Query.RETRIEVE_ALL_TASKS_FROM_OPENML_FOR_DATASET, datasetId=dataset_id)

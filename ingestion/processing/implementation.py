@@ -9,19 +9,21 @@ from common.data import Task, Implementation
 from common.data.implementation import Parameter, Software, Platform
 from mlsea import mlsea_repository as mlsea
 from mlsea.dtos import ImplementationDto, SoftwareDto
+from processing.types import ProcessingOptions
 
 IMPLEMENTATION_BASE_URI = "http://w3id.org/mlsea/openml/flow/"
 
-async def process_all_implementations(task: Task, recursive: bool = False, head: int = None, offset_id: int = 0):
+async def process_all_implementations(task: Task, options: ProcessingOptions = ProcessingOptions()):
     openml_task_id = int(task.mlsea_uri.split('/')[-1])
     count = 0
+    offset_id = options.offset.pop('implementation', 0) if options.offset is not None else 0
     while True:
         task_implementations_df = mlsea.retrieve_all_implementations_from_openml_for_task(openml_task_id, batch_size=100, offset_id=offset_id)
         if task_implementations_df.empty:
             break
 
-        if head is not None:
-            task_implementations_df = task_implementations_df.head(head)
+        if options.head is not None:
+            task_implementations_df = task_implementations_df.head(options.head)
 
         for implementation_dto in task_implementations_df.itertuples(index=False):
             try:
@@ -53,7 +55,7 @@ async def process_all_implementations(task: Task, recursive: bool = False, head:
 
         await task.save(link_rule=WriteRules.DO_NOTHING)
 
-        if head is not None and count >= head:
+        if options.head is not None and count >= options.head:
             break
 
 async def find_or_create_implementation(openml_implementation_id: int) -> Implementation:

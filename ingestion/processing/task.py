@@ -9,21 +9,21 @@ from mlsea import mlsea_repository as mlsea
 from mlsea.dtos import TaskDto
 from processing.model import process_all_models
 from processing.implementation import process_all_implementations
-
+from processing.types import ProcessingOptions
 
 MLSO_TT_BASE_URI = "http://w3id.org/mlso/vocab/ml_task_type#"
 
-async def process_all(dataset: Dataset, recursive: bool = False, head: int = None, offset: Optional[Dict[str, int]] = None):
+async def process_all(dataset: Dataset, options: ProcessingOptions = ProcessingOptions()):
     dataset_id = int(dataset.info.mlsea_uri.split('/')[-1])
     count = 0
-    offset_id = offset.pop('task', 0) if offset is not None else 0
+    offset_id = options.offset.pop('task', 0) if options.offset is not None else 0
     while True:
-        dataset_tasks_df = mlsea.retrieve_all_tasks_from_openml_for_dataset(dataset_id, batch_size=100, offset_id=offset_id)
+        dataset_tasks_df = mlsea.retrieve_all_tasks_from_openml_for_dataset(dataset_id, batch_size=100, offset_id=offset_id, task_type=options.task_type)
         if dataset_tasks_df.empty:
             break
 
-        if head is not None:
-            dataset_tasks_df = dataset_tasks_df.head(head-count)
+        if options.head is not None:
+            dataset_tasks_df = dataset_tasks_df.head(options.head-count)
 
         for task_dto in dataset_tasks_df.itertuples(index=False):
             try:
@@ -33,9 +33,9 @@ async def process_all(dataset: Dataset, recursive: bool = False, head: int = Non
 
                 task: Task = await _ensure_task_exists(task_dto, dataset)
 
-                if recursive:
-                    await process_all_implementations(task, recursive, head)
-                    await process_all_models(task, recursive, head, offset)
+                if options.recursive:
+                    await process_all_implementations(task, options)
+                    await process_all_models(task, options)
 
             except Exception as e:
                 print(f"Error processing task {task_dto.openml_task_id}: {e}")
@@ -48,7 +48,7 @@ async def process_all(dataset: Dataset, recursive: bool = False, head: int = Non
                 count += 1
                 offset_id = task_dto.openml_task_id
 
-        if head is not None and count >= head:
+        if options.head is not None and count >= options.head:
             break
 
 

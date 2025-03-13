@@ -10,18 +10,19 @@ from mlsea import DatasetDto, mlsea_repository as mlsea
 from processing.task import process_all as process_all_tasks
 
 from common.data_profiler import DataProfiler, ReadMode
+from processing.types import ProcessingOptions
 
 
-async def process_all_datasets(dataset_ids: List[int] = None, recursive: bool = False, head: int = None, offset: Optional[Dict[str, int]] = None):
+async def process_all_datasets(dataset_ids: List[int] = None, options: ProcessingOptions = ProcessingOptions()):
     count = 0
-    offset_id = offset.pop('dataset', 0) if offset is not None else 0
+    offset_id = options.offset.pop('dataset', 0) if options.offset is not None else 0
     while True:
         datasets_df = mlsea.retrieve_datasets_from_openml(dataset_ids, batch_size=10, offset_id=offset_id)
         if datasets_df.empty:
             break
 
-        if head is not None:
-            datasets_df = datasets_df.head(head-count)
+        if options.head is not None:
+            datasets_df = datasets_df.head(options.head-count)
 
         for dataset_dto in datasets_df.itertuples(index=False):
             try:
@@ -31,8 +32,8 @@ async def process_all_datasets(dataset_ids: List[int] = None, recursive: bool = 
 
                 dataset: Dataset = await _ensure_dataset_exists(dataset_dto)
 
-                if recursive:
-                    await process_all_tasks(dataset, recursive, head, offset)
+                if options.recursive:
+                    await process_all_tasks(dataset, options)
             except Exception as e:
                 print(f"Error processing dataset {dataset_dto.openml_dataset_id}: {e}")
                 with open("error_messages.txt", "a") as f:
@@ -43,7 +44,7 @@ async def process_all_datasets(dataset_ids: List[int] = None, recursive: bool = 
                 count += 1
                 offset_id = dataset_dto.openml_dataset_id
 
-        if head is not None and count >= head:
+        if options.head is not None and count >= options.head:
             break
 
 async def _ensure_dataset_exists(dataset_dto: DatasetDto):
