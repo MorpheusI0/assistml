@@ -14,7 +14,7 @@ from common.data_profiler import DataProfiler, ReadMode
 
 async def process_all_datasets(dataset_ids: List[int] = None, recursive: bool = False, head: int = None, offset: Optional[Dict[str, int]] = None):
     count = 0
-    offset_id = offset.get('dataset', 0) if offset is not None else 0
+    offset_id = offset.pop('dataset', 0) if offset is not None else 0
     while True:
         datasets_df = mlsea.retrieve_datasets_from_openml(dataset_ids, batch_size=10, offset_id=offset_id)
         if datasets_df.empty:
