@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from typing import Dict, Any
+from typing import Any, Dict
 
 from bson import ObjectId
 
@@ -38,7 +38,7 @@ class HyperparameterConfiguration:
             sorted_configuration[implementation_id] = OrderedDict(sorted(configuration[implementation_id].items(), key=lambda x: x[0]))
         return sorted_configuration
 
-    def get_standardized_configuration(self):
+    def get_standardized_configuration(self) -> OrderedDict[ObjectId, OrderedDict[str, Any]]:
         if not self._hyperparameter_analytics.are_standardizers_fitted():
             raise ValueError("Standardizers are not fitted. Call fit_standardizers() first.")
         standardized_configuration = OrderedDict()
@@ -47,6 +47,16 @@ class HyperparameterConfiguration:
             for name, value in hyperparameters.items():
                 standardized_configuration[implementation_id][name] = self._hyperparameter_analytics.standardize_hyperparameter_value(implementation_id, name, value)
         return standardized_configuration
+
+    def get_representational_configuration(self) -> OrderedDict[ObjectId, OrderedDict[str, Any]]:
+        if not self._hyperparameter_analytics.are_standardizers_fitted():
+            raise ValueError("Standardizers are not fitted. Call fit_standardizers() first.")
+        representational_configuration = OrderedDict()
+        for implementation_id, hyperparameters in self.get_standardized_configuration().items():
+            representational_configuration[implementation_id] = OrderedDict()
+            for name, value in hyperparameters.items():
+                representational_configuration[implementation_id][name] = self._hyperparameter_analytics.reverse_standardize_hyperparameter_value(implementation_id, name, value)
+        return representational_configuration
 
     def get_raw_configuration(self):
         return self._configuration

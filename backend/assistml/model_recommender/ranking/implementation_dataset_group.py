@@ -135,10 +135,14 @@ class ImplementationDatasetGroup:
         selected_metrics = list(query.preferences.keys())
         configurations = [
             HyperparameterConfigurationReport(
-                hyperparameters=[PartialHyperparameterConfiguration(
-                    implementation=Link(DBRef(Implementation.get_collection_name(), implementation_id), Implementation),
-                    hyperparameters=hyperparameters
-                ) for implementation_id, hyperparameters in configuration.get_configuration().items()],
+                hyperparameters=[
+                    PartialHyperparameterConfiguration(
+                        implementation=Link(
+                            DBRef(Implementation.get_collection_name(), implementation_id), Implementation
+                            ),
+                        hyperparameters=hyperparameters
+                    ) for implementation_id, hyperparameters in configuration.get_representational_configuration().items()
+                ],
                 performance={
                     metric: PerformanceReport(
                         quantile_label="Q1",  # TODO: implement quantile calculation
@@ -148,7 +152,8 @@ class ImplementationDatasetGroup:
                         std=self._metric_analytics.denormalize_metric_value(metric, metric_values['std'])
                     ) for metric, metric_values in self._aggregated_metrics_by_configuration[configuration].items()
                 }
-            ) for configuration in self.get_top_m_configurations(selected_metrics, top_m)
+            )
+            for configuration in self.get_top_m_configurations(selected_metrics, top_m)
         ]
         report = ImplementationDatasetGroupReport(
             dataset=Link(self._dataset.to_ref(), Dataset),

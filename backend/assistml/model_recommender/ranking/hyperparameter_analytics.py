@@ -58,5 +58,10 @@ class HyperparameterAnalytics:
             raise ValueError("Standardizers are not fitted. Call fit_standardizers() first.")
         return self._standardizers[implementation_id][hyperparameter_name].transform(value)
 
+    def reverse_standardize_hyperparameter_value(self, implementation_id: PydanticObjectId, hyperparameter_name: str, value: Any) -> Any:
+        if not self._are_standardizers_fitted:
+            raise ValueError("Standardizers are not fitted. Call fit_standardizers() first.")
+        return self._standardizers[implementation_id][hyperparameter_name].inverse_transform(value)
+
     def are_standardizers_fitted(self) -> bool:
         return self._are_standardizers_fitted

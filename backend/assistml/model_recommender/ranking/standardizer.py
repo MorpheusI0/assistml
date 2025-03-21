@@ -1,5 +1,5 @@
 import pandas as pd
-from typing import List, Any, Dict, Union
+from typing import List, Any, Dict, Optional, Union
 
 
 class Standardizer:
@@ -19,6 +19,7 @@ class Standardizer:
         self.bins = bins
         self.numeric_threshold = numeric_threshold
         self.is_numeric: Union[bool, None] = None
+        self.is_integer: Optional[bool] = None
         self.bin_intervals = None  # Will store pandas IntervalIndex for numeric binning
         self.numeric_labels = None  # e.g., ["Q1", "Q2", ...]
         self.categorical_mapping: Dict[Any, str] = {}  # maps original -> standardized
@@ -77,6 +78,7 @@ class Standardizer:
         if self.is_numeric:
             # Convert all values to float
             numeric_values = [float(v) for v in values]
+            self.is_integer = all(v.is_integer() for v in numeric_values)
             self._fit_numeric(numeric_values)
         else:
             self._fit_categorical(values)
@@ -116,7 +118,7 @@ class Standardizer:
         else:
             return self._transform_categorical(values)
 
-    def _inverse_transform_numeric(self, transformed: List[str]) -> List[float]:
+    def _inverse_transform_numeric(self, transformed: List[str]) -> List[Union[float, int]]:
         """
         Inverse transform numeric bin labels back to a representative value (the midpoint).
         """
@@ -124,7 +126,7 @@ class Standardizer:
             constant = (self.bin_intervals[0].left + self.bin_intervals[0].right) / 2
             return [constant for _ in transformed]
         rep_values = {
-            label: (interval.left + interval.right) / 2
+            label: (interval.left + interval.right) / 2 if not self.is_integer else round((interval.left + interval.right) / 2)
             for label, interval in zip(self.numeric_labels, self.bin_intervals)
         }
         return [rep_values.get(tv, None) for tv in transformed]
