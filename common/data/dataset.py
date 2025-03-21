@@ -9,6 +9,7 @@ from pymongo import IndexModel
 from common.data.utils import CustomBaseModel, alias_generator
 
 Task = ForwardRef("Task")
+DatasetDescriptorNormalizer = ForwardRef("DatasetDescriptorNormalizer")
 
 
 class TargetFeatureType(str, Enum):
@@ -158,15 +159,17 @@ class Dataset(Document):
                 monotonous_filtering = feature.monotonous_filtering
                 anova_f1 = np.log1p(feature.anova_f1)
                 anova_pvalue = feature.anova_pvalue
-                numeric_stats.append([
+                feature_values = [
                     missing_value_ratio,
                     min_value,
                     max_value,
                     outliers_ratio,
                     monotonous_filtering,
                     anova_f1,
-                    anova_pvalue
-                ])
+                    anova_pvalue]
+                if any([np.isnan(value) for value in feature_values]):
+                    continue
+                numeric_stats.append(feature_values)
             numeric_stats = np.array(numeric_stats)
             numeric_agg_mean = np.mean(numeric_stats, axis=0)
             numeric_agg_std = np.std(numeric_stats, axis=0)
@@ -191,13 +194,16 @@ class Dataset(Document):
                 imbalance = feature.imbalance
                 monotonous_filtering = feature.monotonous_filtering
                 mutual_info = feature.mutual_info
-                categorical_stats.append([
+                feature_values = [
                     missing_value_ratio,
                     nr_levels,
                     imbalance,
                     monotonous_filtering,
                     mutual_info
-                ])
+                ]
+                if any([np.isnan(value) for value in feature_values]):
+                    continue
+                categorical_stats.append(feature_values)
             categorical_stats = np.array(categorical_stats)
             categorical_agg_mean = np.mean(categorical_stats, axis=0)
             categorical_agg_std = np.std(categorical_stats, axis=0)
@@ -224,7 +230,7 @@ class Dataset(Document):
                 entropy = feature.entropy
                 min_vocab = feature.min_vocab
                 max_vocab = feature.max_vocab
-                unstructured_stats.append([
+                feature_values = [
                     missing_value_ratio,
                     vocab_size,
                     relative_vocab,
@@ -232,7 +238,10 @@ class Dataset(Document):
                     entropy,
                     min_vocab,
                     max_vocab
-                ])
+                ]
+                if any([np.isnan(value) for value in feature_values]):
+                    continue
+                unstructured_stats.append(feature_values)
             unstructured_stats = np.array(unstructured_stats)
             unstructured_agg_mean = np.mean(unstructured_stats, axis=0)
             unstructured_agg_std = np.std(unstructured_stats, axis=0)
@@ -261,26 +270,18 @@ class Dataset(Document):
             datetime_agg_std = np.zeros(0)
         return np.hstack([datetime_agg_mean, datetime_agg_std])
 
-    def _get_dataset_descriptor(self) -> np.ndarray:
+    def get_dataset_descriptor(self) -> np.ndarray:
         """
         Get the dataset descriptor.
 
         Returns:
         np.array: The dataset descriptor.
         """
-        weights = {
-            "base": 0.5,            # Base dataset information (6 values)
-            "numeric": 0.2,         # Numeric features (14 values)
-            "categorical": 0.3,     # Categorical features (10 values)
-            "unstructured": 0.2,    # Unstructured features (14 values)
-            "datetime": 0.0,        # Datetime features (0 values)
-        }
-
-        base_vector = self._get_base_meta_dataset_descriptor() * weights["base"]
-        numeric_vector = self._get_aggregated_numerical_dataset_descriptor() * weights["numeric"]
-        categorical_vector = self._get_aggregated_categorical_dataset_descriptor() * weights["categorical"]
-        unstructured_vector = self._get_aggregated_unstructured_dataset_descriptor() * weights["unstructured"]
-        datetime_vector = self._get_aggregated_datetime_dataset_descriptor() * weights["datetime"]
+        base_vector = self._get_base_meta_dataset_descriptor()
+        numeric_vector = self._get_aggregated_numerical_dataset_descriptor()
+        categorical_vector = self._get_aggregated_categorical_dataset_descriptor()
+        unstructured_vector = self._get_aggregated_unstructured_dataset_descriptor()
+        datetime_vector = self._get_aggregated_datetime_dataset_descriptor()
 
         final_vector = np.hstack([
             base_vector,
@@ -291,7 +292,7 @@ class Dataset(Document):
         ])
         return final_vector
 
-    def similarity(self, other: "Dataset") -> float:
+    def similarity(self, other: "Dataset", normalizer: DatasetDescriptorNormalizer) -> float:
         """
         Calculate the similarity between two datasets.
 
@@ -301,8 +302,8 @@ class Dataset(Document):
         Returns:
         float: The similarity between the two datasets.
         """
-        self_vector = self._get_dataset_descriptor()
-        other_vector = other._get_dataset_descriptor()
+        self_vector = normalizer.normalize(self.get_dataset_descriptor())
+        other_vector = normalizer.normalize(other.get_dataset_descriptor())
         self_norm = np.linalg.norm(self_vector)
         other_norm = np.linalg.norm(other_vector)
         if self_norm == 0 or other_norm == 0:

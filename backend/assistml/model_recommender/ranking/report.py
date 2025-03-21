@@ -12,6 +12,7 @@ from common.data import Dataset, Implementation, Query
 from common.data.query import Summary, Report as FinalReport
 from common.data.model import Metric
 from common.data.projection.model import ModelView
+from common.utils.dataset_descriptor_normalizer import DatasetDescriptorNormalizer
 
 
 class DistrustPointCategory(Enum):
@@ -39,6 +40,7 @@ class Report:
     _implementation_groups_locks: Dict[ModelGroup, DefaultDict[PydanticObjectId, asyncio.Lock]]
     _document_cache: DocumentCache
     _metric_analytics: MetricAnalytics
+    _dataset_analytics: DatasetDescriptorNormalizer
     _ranked_implementation_groups: Optional[Dict[ModelGroup, List[Tuple[float, ImplementationGroup]]]]
     _rank_implementations_lock: asyncio.Lock
 
@@ -56,6 +58,7 @@ class Report:
         }
         self._document_cache = DocumentCache()
         self._metric_analytics = MetricAnalytics()
+        self._dataset_descriptor_normalizer = DatasetDescriptorNormalizer()
         self._ranked_implementation_groups = None
         self._rank_implementations_lock = asyncio.Lock()
 
@@ -102,7 +105,7 @@ class Report:
                 async with self._implementation_groups_locks[model_group][implementation_id]:
                     if implementation_id not in self._implementation_groups[model_group]:
                         self._implementation_groups[model_group][implementation_id] = await ImplementationGroup.create(
-                            implementation, self._document_cache, self._metric_analytics)
+                            implementation, self._document_cache, self._metric_analytics, self._dataset_descriptor_normalizer)
                 tasks.append(self._implementation_groups[model_group][implementation_id].add_model(model))
         await asyncio.gather(*tasks)
         
@@ -116,6 +119,8 @@ class Report:
             raise ValueError("Models not set")
         
         new_dataset = await self._document_cache.get_dataset(self._query.dataset)
+        self._dataset_descriptor_normalizer.add_dataset(new_dataset)
+        self._dataset_descriptor_normalizer.fit_normalizers()
         self._metric_analytics.fit_normalizers()
         self._rank_datasets(new_dataset)
         self._ranked_implementation_groups = {}

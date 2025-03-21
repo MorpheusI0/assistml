@@ -10,9 +10,10 @@ from assistml.model_recommender.ranking.metric_analytics import DescriptiveStati
 from assistml.utils.document_cache import DocumentCache
 from common.data import Dataset, Implementation
 from common.data.model import Metric
-from common.data.projection.model import FullyJoinedModelView
+from common.data.projection.model import ModelView
 from common.data.query import HyperparameterConfigurationReport, ImplementationDatasetGroupReport, \
     PartialHyperparameterConfiguration, PerformanceReport, Query
+from common.utils.dataset_descriptor_normalizer import DatasetDescriptorNormalizer
 
 
 class ImplementationDatasetGroup:
@@ -20,12 +21,13 @@ class ImplementationDatasetGroup:
     _immutable: bool
     _implementation: Implementation
     _dataset: Dataset
-    _models: List[Tuple[FullyJoinedModelView, HyperparameterConfiguration]]
+    _models: List[Tuple[ModelView, HyperparameterConfiguration]]
     _models_grouped_by_configuration: Optional[
-        DefaultDict[HyperparameterConfiguration, List[Tuple[FullyJoinedModelView, HyperparameterConfiguration]]]]
+        DefaultDict[HyperparameterConfiguration, List[Tuple[ModelView, HyperparameterConfiguration]]]]
     _document_cache: DocumentCache
     _metric_analytics: MetricAnalytics
     _hyperparameter_analytics: HyperparameterAnalytics
+    _dataset_descriptor_normalizer: DatasetDescriptorNormalizer
     _aggregated_metrics_by_configuration: Optional[Dict[HyperparameterConfiguration, Dict[Metric, DescriptiveStatistics]]]
     _aggregated_metrics: Optional[Dict[Metric, Any]]
     _ranked_configurations: Optional[List[Tuple[float, HyperparameterConfiguration]]]
@@ -36,7 +38,8 @@ class ImplementationDatasetGroup:
             dataset: Dataset,
             document_cache: DocumentCache,
             metric_analytics: MetricAnalytics,
-            hyperparameter_analytics: HyperparameterAnalytics
+            hyperparameter_analytics: HyperparameterAnalytics,
+            dataset_descriptor_normalizer: DatasetDescriptorNormalizer
     ):
         self._immutable = False
         self._implementation = implementation
@@ -46,6 +49,7 @@ class ImplementationDatasetGroup:
         self._document_cache = document_cache
         self._metric_analytics = metric_analytics
         self._hyperparameter_analytics = hyperparameter_analytics
+        self._dataset_descriptor_normalizer = dataset_descriptor_normalizer
         self._aggregated_metrics_by_configuration = None
         self._ranked_configurations = None
 
@@ -56,12 +60,14 @@ class ImplementationDatasetGroup:
             dataset_ref: Union[Link[Dataset], Dataset],
             document_cache: DocumentCache,
             metric_analytics: MetricAnalytics,
-            hyperparameter_analytics: HyperparameterAnalytics
+            hyperparameter_analytics: HyperparameterAnalytics,
+            dataset_descriptor_normalizer: DatasetDescriptorNormalizer
     ) -> "ImplementationDatasetGroup":
         dataset = await document_cache.get_dataset(dataset_ref)
-        return cls(implementation, dataset, document_cache, metric_analytics, hyperparameter_analytics)
+        dataset_descriptor_normalizer.add_dataset(dataset)
+        return cls(implementation, dataset, document_cache, metric_analytics, hyperparameter_analytics, dataset_descriptor_normalizer)
 
-    async def add_model(self, model: FullyJoinedModelView) -> None:
+    async def add_model(self, model: ModelView) -> None:
         if self._immutable:
             raise ValueError("Group is immutable")
         configuration = await HyperparameterConfiguration.from_setup(
@@ -122,7 +128,7 @@ class ImplementationDatasetGroup:
         return self._aggregated_metrics_by_configuration[self._ranked_configurations[0][1]]
 
     def get_dataset_similarity(self, dataset: Dataset) -> float:
-        return self._dataset.similarity(dataset)
+        return self._dataset.similarity(dataset, self._dataset_descriptor_normalizer)
 
     async def generate_report(self, query: Query, top_m) -> ImplementationDatasetGroupReport:
         query_dataset = await self._document_cache.get_dataset(query.dataset)

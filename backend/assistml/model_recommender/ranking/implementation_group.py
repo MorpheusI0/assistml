@@ -1,19 +1,17 @@
 import asyncio
 from collections import defaultdict
-from sys import implementation
 from typing import DefaultDict, Dict, List, Optional, Tuple, Union
 
 from beanie import Link, PydanticObjectId
-from pandas.io.pytables import performance_doc
 
 from assistml.model_recommender.ranking.hyperparameter_analytics import HyperparameterAnalytics
 from assistml.model_recommender.ranking.implementation_dataset_group import ImplementationDatasetGroup
 from assistml.model_recommender.ranking.metric_analytics import DescriptiveStatistics, MetricAnalytics
-from assistml.utils.document_cache import DocumentCache
-from common.data import Dataset, Implementation, Query
+from common.data import Dataset, Task, Implementation, Query
 from common.data.model import Metric
-from common.data.projection.model import FullyJoinedModelView
+from common.data.projection.model import ModelView
 from common.data.query import ImplementationGroupReport, PerformanceReport
+from common.utils.dataset_descriptor_normalizer import DatasetDescriptorNormalizer
 
 
 class ImplementationGroup:
@@ -21,6 +19,8 @@ class ImplementationGroup:
     _implementation: Implementation
     _dataset_groups: Dict[PydanticObjectId, ImplementationDatasetGroup]
     _document_cache: DocumentCache
+    _metric_analytics: MetricAnalytics
+    _dataset_descriptor_normalizer: DatasetDescriptorNormalizer
     _hyperparameter_analytics: HyperparameterAnalytics
     _check_dataset_lock: DefaultDict[PydanticObjectId, asyncio.Lock]
     _ranked_dataset_groups: Optional[List[Tuple[float, ImplementationDatasetGroup]]]
@@ -31,12 +31,14 @@ class ImplementationGroup:
             self,
             implementation: Implementation,
             document_cache: DocumentCache,
-            metric_analytics: MetricAnalytics
+            metric_analytics: MetricAnalytics,
+            dataset_descriptor_normalizer: DatasetDescriptorNormalizer
     ):
         self._implementation = implementation
         self._dataset_groups = {}
         self._document_cache = document_cache
         self._metric_analytics = metric_analytics
+        self._dataset_descriptor_normalizer = dataset_descriptor_normalizer
         self._hyperparameter_analytics = HyperparameterAnalytics(implementation, document_cache)
         self._check_dataset_lock = defaultdict(asyncio.Lock)
         self._ranked_dataset_groups = None
@@ -48,17 +50,17 @@ class ImplementationGroup:
             cls,
             implementation_ref: Union[Link[Implementation], Implementation],
             document_cache: DocumentCache,
-            metric_analytics: MetricAnalytics
+            metric_analytics: MetricAnalytics,
+            dataset_descriptor_normalizer: DatasetDescriptorNormalizer
     ) -> "ImplementationGroup":
         implementation = await document_cache.get_implementation(implementation_ref)
-        return cls(implementation, document_cache, metric_analytics)
+        return cls(implementation, document_cache, metric_analytics, dataset_descriptor_normalizer)
 
-    async def add_model(self, model: FullyJoinedModelView):
-        dataset = model.setup.task.dataset
+    async def add_model(self, model: ModelView):
+        task: Task = await self._document_cache.get_task(model.setup.task)
+        dataset: Dataset = await self._document_cache.get_dataset(task.dataset)
         if isinstance(dataset, Dataset):
             dataset_id = dataset.id
-        elif isinstance(dataset, Link):
-            dataset_id = dataset.to_ref().id
         else:
             raise ValueError(f"Unknown dataset type: {type(dataset)}")
         if dataset_id in self._dataset_groups:
@@ -69,7 +71,7 @@ class ImplementationGroup:
             if dataset_id not in self._dataset_groups: # check again after lock
                 self._dataset_groups[dataset_id] = await ImplementationDatasetGroup.create(
                     self._implementation, dataset, self._document_cache, self._metric_analytics,
-                    self._hyperparameter_analytics)
+                    self._hyperparameter_analytics, self._dataset_descriptor_normalizer)
         await self._dataset_groups[dataset_id].add_model(model)
 
     def rank_datasets(self, dataset: Dataset) -> None:
