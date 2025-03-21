@@ -7,13 +7,13 @@ from bson import DBRef
 from assistml.model_recommender.ranking.hyperparameter_analytics import HyperparameterAnalytics
 from assistml.model_recommender.ranking.hyperparameter_configuration import HyperparameterConfiguration
 from assistml.model_recommender.ranking.metric_analytics import DescriptiveStatistics, MetricAnalytics
-from assistml.utils.document_cache import DocumentCache
 from common.data import Dataset, Implementation
 from common.data.model import Metric
 from common.data.projection.model import ModelView
 from common.data.query import HyperparameterConfigurationReport, ImplementationDatasetGroupReport, \
     PartialHyperparameterConfiguration, PerformanceReport, Query
 from common.utils.dataset_descriptor_normalizer import DatasetDescriptorNormalizer
+from common.utils.document_cache import DocumentCache
 
 
 class ImplementationDatasetGroup:

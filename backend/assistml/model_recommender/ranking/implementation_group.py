@@ -12,6 +12,7 @@ from common.data.model import Metric
 from common.data.projection.model import ModelView
 from common.data.query import ImplementationGroupReport, PerformanceReport
 from common.utils.dataset_descriptor_normalizer import DatasetDescriptorNormalizer
+from common.utils.document_cache import DocumentCache
 
 
 class ImplementationGroup:

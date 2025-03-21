@@ -3,8 +3,8 @@ from typing import Dict, Any, ForwardRef
 from beanie import PydanticObjectId
 
 from assistml.model_recommender.ranking.standardizer import Standardizer
-from assistml.utils.document_cache import DocumentCache
 from common.data import Implementation
+from common.utils.document_cache import DocumentCache
 
 HyperparameterConfiguration = ForwardRef("HyperparameterConfiguration")
 

@@ -4,8 +4,8 @@ from typing import Dict, Any
 from bson import ObjectId
 
 from assistml.model_recommender.ranking.hyperparameter_analytics import HyperparameterAnalytics
-from assistml.utils.document_cache import DocumentCache
 from common.data.model import Setup
+from common.utils.document_cache import DocumentCache
 
 
 class HyperparameterConfiguration:

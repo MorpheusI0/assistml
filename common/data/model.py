@@ -74,6 +74,7 @@ class Model(Document):
             IndexModel("mlseaUri", name="mlseaUri_", unique=True,
                        partialFilterExpression={"mlseaUri": {"$exists": True}}),
             IndexModel("setup.task.$id", name="setup.task.$id_"),
+            IndexModel("setup.task", name="setup.task_"),
         ]
         bson_encoders = {
             Dict: encode_dict

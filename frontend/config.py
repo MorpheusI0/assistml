@@ -14,7 +14,7 @@ class Config(object):
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
     BACKEND_BASE_URL = os.getenv("BACKEND_BASE_URL", "http://localhost:8080")
-    WORKING_DIR = os.getenv("WORKING_DIR", "~/.assistml/dashboard")
+    WORKING_DIR = os.path.expanduser(os.getenv("WORKING_DIR", "~/.assistml/dashboard"))
     # SAVE_UPLOADS = _parse_bool(os.getenv("SAVE_UPLOADS", False))
 
     MONGO_HOST = os.getenv("MONGO_HOST")

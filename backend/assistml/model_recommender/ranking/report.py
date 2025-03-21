@@ -7,12 +7,12 @@ from beanie import Link, PydanticObjectId
 
 from assistml.model_recommender.ranking.implementation_group import ImplementationGroup
 from assistml.model_recommender.ranking.metric_analytics import MetricAnalytics
-from assistml.utils.document_cache import DocumentCache
 from common.data import Dataset, Implementation, Query
 from common.data.query import Summary, Report as FinalReport
 from common.data.model import Metric
 from common.data.projection.model import ModelView
 from common.utils.dataset_descriptor_normalizer import DatasetDescriptorNormalizer
+from common.utils.document_cache import DocumentCache
 
 
 class DistrustPointCategory(Enum):

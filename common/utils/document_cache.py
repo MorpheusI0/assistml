@@ -4,7 +4,7 @@ from typing import DefaultDict, Dict, Union, TypeVar, Type
 
 from beanie import PydanticObjectId, Link, Document
 
-from common.data import Dataset, Implementation
+from common.data import Dataset, Task, Implementation
 
 T = TypeVar("T", bound=Document)
 
@@ -65,3 +65,6 @@ class DocumentCache:
                 await self.get_implementation(component, cache_components)
 
         return implementation
+
+    async def get_task(self, task: Union[Link[Task], PydanticObjectId, Task]) -> Task:
+        return await self._get_document(Task, task)
