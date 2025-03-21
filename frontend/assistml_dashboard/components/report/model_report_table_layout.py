@@ -5,10 +5,10 @@ from dash import html
 from quart import current_app, g
 
 from common.data.query import ImplementationGroupReport
-from data import Implementation
-from data.query import HyperparameterConfigurationReport, ImplementationDatasetGroupReport, \
+from common.data import Implementation
+from common.data.query import HyperparameterConfigurationReport, ImplementationDatasetGroupReport, \
     PartialHyperparameterConfiguration
-from utils.document_cache import DocumentCache
+from common.utils.document_cache import DocumentCache
 
 
 def background_color(grade):

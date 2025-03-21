@@ -1,13 +1,13 @@
 import glob
 import os
-from typing import Optional, Any
+from typing import Any, Optional
 
 import httpx
 from pydantic import ValidationError
 
-from common.dto import AnalyseDatasetRequestDto, AnalyseDatasetResponseDto, ReportRequestDto, ReportResponseDto
 from common.data.model import Metric
 from common.data.task import TaskType
+from common.dto import AnalyseDatasetRequestDto, AnalyseDatasetResponseDto, ReportRequestDto, ReportResponseDto
 
 
 class BackendClient:
@@ -15,7 +15,8 @@ class BackendClient:
     def __init__(self, config: dict):
         self.base_url = config['BACKEND_BASE_URL']
         self.working_dir = config['WORKING_DIR']
-        self.timeout = None if config['DEBUG'] else 60
+        # because processing can take a while, we set a longer timeout
+        self.timeout = None if config['DEBUG'] else 5 * 60 * 60  # 5 hours
 
     async def analyse_dataset(self, class_label: str, class_feature_type: str, feature_type_list: str) -> (Optional[AnalyseDatasetResponseDto], Optional[str]):
         url = f"{self.base_url}/analyse-dataset"

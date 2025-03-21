@@ -9,7 +9,7 @@ def _parse_bool(value):
 class Config(object):
     HOST = os.getenv("HOST", "0.0.0.0")
     PORT = os.getenv("PORT", 8050)
-    DEBUG = _parse_bool(os.getenv("DEBUG", True))
+    DEBUG = _parse_bool(os.getenv("DEBUG", False))
     VERBOSE = _parse_bool(os.getenv("VERBOSE", True))
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 

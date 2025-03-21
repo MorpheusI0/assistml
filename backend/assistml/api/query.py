@@ -1,10 +1,9 @@
 from pydantic import ValidationError
-from quart import current_app, jsonify, request
+from quart import jsonify, request
 
 from assistml.api import bp
 from assistml.model_recommender import generate_report
-from common.dto import ReportRequestDto
-from dto import ReportResponseDto
+from common.dto import ReportRequestDto, ReportResponseDto
 
 
 @bp.route('/query', methods=['POST'])

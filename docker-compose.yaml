@@ -12,45 +12,36 @@ services:
     ports:
       - "27017:27017"
     env_file:
-      - frontend/dashboard-docker.env
+      - mongodb/mongodb-docker.env
     volumes:
       - "mongodb_data:/data/db"
-      - "./repository/:/repository/:ro"
-      - "./repository/init-mongo.sh:/docker-entrypoint-initdb.d/init-mongo.sh:ro"
+      - "./mongodb/init-user.sh:/docker-entrypoint-initdb.d/init-user.sh:ro"
 
   backend:
     container_name: assistml_backend
     hostname: backend
     restart: unless-stopped
-    build: ./backend/
+    build:
+      context: ./
+      dockerfile: ./backend/Dockerfile
     depends_on:
       - mongodb
     ports:
-        - "8080:8080"
-    volumes:
-      - "./backend/modules/:/app/modules/:ro"
-      - "./common/:/app/common/:ro"
-      - "./backend/assistml/:/app/assistml/:ro"
-      - "./backend/run.py:/app/run.py:ro"
-      - "./backend/config.py:/app/config.py:ro"
-      - "./source-code/:/app/1_data/:ro"
+      - "8080:8080"
     env_file:
       - backend/backend-docker.env
 
   dashboard:
     container_name: assistml_dashboard
     restart: unless-stopped
-    build: ./frontend/
+    build:
+      context: ./
+      dockerfile: ./frontend/Dockerfile
     depends_on:
       - backend
       - mongodb
     ports:
       - "8050:8050"
-    volumes:
-      - "./common/:/app/common/:ro"
-      - "./frontend/assistml_dashboard/:/app/assistml_dashboard/:ro"
-      - "./frontend/run.py:/app/run.py:ro"
-      - "./frontend/config.py:/app/config.py:ro"
     env_file:
       - frontend/dashboard-docker.env
 

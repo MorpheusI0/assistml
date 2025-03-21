@@ -1,14 +1,13 @@
-FROM python:3.12-rc
+FROM python:3.12-slim-bookworm
 
-COPY requirements.txt /app/requirements.txt
-WORKDIR /app
+COPY common/. /app/common/
+COPY frontend/. /app/frontend/
+WORKDIR /app/frontend
 
 RUN apt update && apt upgrade -y
-RUN apt install -y gfortran libopenblas-dev pkg-config liblapack-dev
-
-RUN CFLAGS="-O2" pip install -r requirements.txt
+RUN pip install -r requirements.txt
 
 ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
 
-WORKDIR /app
 ENTRYPOINT ["python3", "run.py"]

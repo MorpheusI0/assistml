@@ -1,13 +1,13 @@
-FROM python:3.12-rc
+FROM python:3.12-slim-bookworm
 
-COPY requirements.txt /app/requirements.txt
-WORKDIR /app
+COPY common/. /app/common/
+COPY backend/. /app/backend/
+WORKDIR /app/backend
 
-# install python
 RUN apt update && apt upgrade -y
-RUN CFLAGS="-O2" pip install -r requirements.txt
+RUN pip install -r requirements.txt
 
-# install additional libraries
-#RUN apt install -y libsasl2-dev libssl-dev libcurl4-openssl-dev libxml2-dev libgit2-dev libsodium-dev
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
 
 ENTRYPOINT ["python3", "run.py"]
