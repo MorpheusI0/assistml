@@ -50,3 +50,16 @@ class Normalizer:
         if self._min_value == self._max_value:
             return self._min_value
         return value * (self._max_value - self._min_value)
+
+    def get_label(self, raw_value: float) -> str:
+        labels = ['E', 'D', 'C', 'B', 'A']
+        outlier_label = 'A+'
+
+        if not self._fitted:
+            raise ValueError("Normalizer is not fitted. Call fit() first.")
+        if self._min_value == self._max_value:
+            return outlier_label
+        norm = self.transform(raw_value)
+        if norm == 1.0:
+            return outlier_label
+        return labels[int(norm * len(labels))]

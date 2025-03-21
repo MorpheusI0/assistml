@@ -1,5 +1,5 @@
 from types import MappingProxyType
-from typing import Any, Dict, List, Literal, Tuple, TypedDict, Union
+from typing import Any, Dict, List, Optional, Tuple, TypedDict, Union
 
 from assistml.model_recommender.ranking.normalizer import Normalizer
 from common.data.model import Metric
@@ -44,6 +44,17 @@ class MetricAnalytics:
         if metric not in self._normalizers:
             raise ValueError(f"Unknown metric: {metric}")
         return self._normalizers[metric].inverse_transform_std(normalized_std)
+
+    def get_label(self, metric: Metric, normalized_value: Optional[float] = None, raw_value: Optional[float] = None) -> str:
+        if normalized_value is not None:
+            value = self.denormalize_metric_value(metric, normalized_value)
+        elif raw_value is not None:
+            value = raw_value
+        else:
+            raise ValueError("Either normalized_value or raw_value must be provided")
+        if metric not in self._normalizers:
+            raise ValueError(f"Unknown metric: {metric}")
+        return self._normalizers[metric].get_label(value)
 
     @staticmethod
     def _calculate_statistics(weighted_normalized_value_list: List[Tuple[float, float]]) -> DescriptiveStatistics:

@@ -129,7 +129,7 @@ class ImplementationGroup:
         aggregated_metrics = self.get_aggregated_metrics(selected_metrics)
         performance_reports = {
             metric: PerformanceReport(
-                quantile_label="TODO_Label",  # TODO: implement quantile calculation
+                quantile_label=self._metric_analytics.get_label(metric, aggregated_metrics[metric]["mean"]),
                 normalized_mean=aggregated_metrics[metric]["mean"],
                 normalized_std=aggregated_metrics[metric]["std"],
                 mean=self._metric_analytics.denormalize_metric_value(metric, aggregated_metrics[metric]["mean"]),

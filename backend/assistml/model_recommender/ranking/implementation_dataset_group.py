@@ -145,7 +145,7 @@ class ImplementationDatasetGroup:
                 ],
                 performance={
                     metric: PerformanceReport(
-                        quantile_label="Q1",  # TODO: implement quantile calculation
+                        quantile_label=self._metric_analytics.get_label(metric, normalized_value=metric_values['mean']),
                         normalized_mean=metric_values['mean'],
                         normalized_std=metric_values['std'],
                         mean=self._metric_analytics.denormalize_metric_value(metric, metric_values['mean']),

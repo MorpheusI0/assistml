@@ -80,9 +80,9 @@
 
 .implementation-group-report-container .metric p {
     flex-shrink: 0;
-    width: 80px;
+    text-align: center;
+    min-width: 60px;
     font-weight: bold;
-    background-color: #8DAD26;
     border-left: 2px solid black;
 }
 
@@ -186,6 +186,10 @@
     position: relative;
     padding-left: 20px;
     padding-bottom: 3px;
+}
+
+.hyperparameter-configuration-report-container .tree li.undefined {
+    text-decoration: line-through;
 }
 
 .hyperparameter-configuration-report-container .tree li:first-of-type {

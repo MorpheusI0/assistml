@@ -1,4 +1,3 @@
-import re
 from typing import Dict, List, Optional, Union
 
 from beanie import Link
@@ -91,7 +90,7 @@ async def create_recursive_hyperparameter_configuration_tree_layout(
                 await create_recursive_hyperparameter_configuration_tree_layout(
                     implementation.components[key], hyperparameters)
             )
-        params.append(html.Li(param))
+        params.append(html.Li(param, className=("undefined" if param_value is None else None)))
 
     # Hyperparameters not contained in the implementation
     if configuration_values is not None:
@@ -202,8 +201,14 @@ async def create_implementation_group_report_layout(group_report: Implementation
                 html.Div(className="metrics", children=[
                     html.Div(className="metric", children=[
                         html.Label(f"{metric_name.display_name}"),
-                        html.P(metric_value.quantile_label),
-                        html.P(f"{round(metric_value.mean,2)} ± {round(metric_value.std,2)}")
+                        html.P(
+                            metric_value.quantile_label,
+                            style={"background-color": background_color(metric_value.quantile_label)}
+                        ),
+                        html.P(
+                            f"{round(metric_value.mean,2)} ± {round(metric_value.std,2)}",
+                            style={"background-color": background_color(metric_value.quantile_label)}
+                        )
                     ]) for metric_name, metric_value in group_report.performance.items()
                 ])
             ]),
