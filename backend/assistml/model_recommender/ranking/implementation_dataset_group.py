@@ -149,7 +149,7 @@ class ImplementationDatasetGroup:
                         normalized_mean=metric_values['mean'],
                         normalized_std=metric_values['std'],
                         mean=self._metric_analytics.denormalize_metric_value(metric, metric_values['mean']),
-                        std=self._metric_analytics.denormalize_metric_value(metric, metric_values['std'])
+                        std=self._metric_analytics.denormalize_metric_std(metric, metric_values['std'])
                     ) for metric, metric_values in self._aggregated_metrics_by_configuration[configuration].items()
                 }
             )
