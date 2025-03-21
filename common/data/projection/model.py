@@ -1,10 +1,5 @@
-from common.data import Model, Implementation, Task
-from common.data.model import Setup
+from common.data import Model
 
 
-class FullyJoinedSetupView(Setup):
-    implementation: Implementation
-    task: Task
-
-class FullyJoinedModelView(Model):
-    setup: FullyJoinedSetupView
+class ModelView(Model):
+    pass

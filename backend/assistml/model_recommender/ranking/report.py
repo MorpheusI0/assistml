@@ -11,7 +11,7 @@ from assistml.utils.document_cache import DocumentCache
 from common.data import Dataset, Implementation, Query
 from common.data.query import Summary, Report as FinalReport
 from common.data.model import Metric
-from common.data.projection.model import FullyJoinedModelView
+from common.data.projection.model import ModelView
 
 
 class DistrustPointCategory(Enum):
@@ -80,10 +80,10 @@ class Report:
 
     async def set_models(
             self,
-            acceptable_models: List[FullyJoinedModelView],
-            nearly_acceptable_models: List[FullyJoinedModelView]
+            acceptable_models: List[ModelView],
+            nearly_acceptable_models: List[ModelView]
     ):
-        model_groups: Dict[ModelGroup, List[FullyJoinedModelView]] = {
+        model_groups: Dict[ModelGroup, List[ModelView]] = {
             "acceptable_models": acceptable_models,
             "nearly_acceptable_models": nearly_acceptable_models,
         }

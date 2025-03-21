@@ -1,3 +1,4 @@
+from .dataset_similarities import DatasetSimilarity
 from .implementation import Implementation
 from .object_document_mapper import ObjectDocumentMapper
 from .dataset import Dataset
@@ -12,4 +13,5 @@ __all__ = [
     'Implementation',
     'Model',
     'Query',
+    'DatasetSimilarity'
 ]

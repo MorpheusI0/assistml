@@ -4,7 +4,7 @@ import pandas as pd
 from quart import current_app
 from sklearn.cluster import DBSCAN
 
-from common.data.projection.model import FullyJoinedModelView
+from common.data.projection.model import ModelView
 from common.data.model import Metric
 
 
@@ -146,15 +146,15 @@ def _filter_metrics_df(
     return metrics_df, metrics
 
 def cluster_models(
-        selected_models: List[FullyJoinedModelView],
+        selected_models: List[ModelView],
         preferences: dict[Metric, float]
-) -> Tuple[List[FullyJoinedModelView], List[FullyJoinedModelView], int, int, Optional[int]]:
+) -> Tuple[List[ModelView], List[ModelView], int, int, Optional[int]]:
     """
     Cluster models using DBSCAN and classify them into "acceptable" and "nearly acceptable" groups
     based on user performance preferences.
 
     Parameters:
-        selected_models (List[FullyJoinedModelView]): List of selected models.
+        selected_models (List[ModelView]): List of selected models.
         preferences (Dict[str, Any]): Dictionary with performance preferences (tolerance factors per metric).
 
     Returns:
@@ -215,8 +215,8 @@ def cluster_models(
         distrust_pts_nacc = None
 
     # Assign models to acceptable or nearly acceptable groups based on the cluster label.
-    acceptable_models: List[FullyJoinedModelView] = []
-    nearly_acceptable_models: List[FullyJoinedModelView] = []
+    acceptable_models: List[ModelView] = []
+    nearly_acceptable_models: List[ModelView] = []
     for idx, row in metrics_df.iterrows():
         label = row['dbscan']
         if label in clusters_acc.keys():

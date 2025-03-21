@@ -1,6 +1,11 @@
-from common.data import Dataset, Implementation, Model, Task
-from common.data.projection import model as model_projection
+from typing import List, Optional
+
+from bson import ObjectId
+from quart import current_app
+
+from common.data import Dataset, DatasetSimilarity, Model, Task
 from common.data.task import TaskType
+from common.data.projection.model import ModelView
 
 RATIO_FIELD_NAMES = [
     "categoricalRatio",
@@ -9,18 +14,10 @@ RATIO_FIELD_NAMES = [
     "unstructuredRatio"
 ]
 
-def _get_sim_0_tasks_pipeline(task_type: TaskType):
-    pipeline = [{
-        "$match": {
-            "taskType": task_type.value
-        }
-    }]
-    return pipeline
-
 def _get_sim_1_ratio_conditions():
     sim_1_conditions = []
     for ratio_field_name in RATIO_FIELD_NAMES:
-        cur_dataset_ratio_field_path = f"$dataset.info.{ratio_field_name}"
+        cur_dataset_ratio_field_path = f"$info.{ratio_field_name}"
         new_dataset_ratio_field_path = f"$newDataset.info.{ratio_field_name}"
 
         sim_1_conditions.append({
@@ -40,52 +37,6 @@ def _get_sim_1_ratio_conditions():
         })
 
     return sim_1_conditions
-
-def _get_sim_1_tasks_pipeline(task_type: TaskType, new_dataset: Dataset):
-    pipeline = _get_sim_0_tasks_pipeline(task_type)
-    pipeline.extend([
-         {
-            "$lookup": {
-                "from": Dataset.get_collection_name(),
-                "localField": "dataset.$id",
-                "foreignField": "_id",
-                "as": "dataset"
-            }
-        }, {
-            "$unwind": {
-                "path": "$dataset"
-            }
-        }, {
-            "$lookup": {
-                "from": Dataset.get_collection_name(),
-                "let": {
-                    "newDatasetId": {"$toObjectId": str(new_dataset.id)}
-                },
-                "pipeline": [
-                    {
-                        "$match": {
-                            "$expr": {"$eq": ["$_id", "$$newDatasetId"]}
-                        }
-                    }
-                ],
-                "as": "newDataset"
-            }
-        }, {
-            "$unwind": {
-                "path": "$newDataset"
-            }
-        }, {
-            "$match": {
-                "$expr": {"$ne": ["$dataset._id", "$newDataset._id"]}
-            }
-        }, {
-            "$match": {
-                "$and": _get_sim_1_ratio_conditions()
-            }
-        }
-    ])
-
-    return pipeline
 
 def _get_sim_2_ratio_conditions(feature_ratio_tolerance: float):
     sim_2_conditions = []
@@ -110,16 +61,6 @@ def _get_sim_2_ratio_conditions(feature_ratio_tolerance: float):
         })
 
     return sim_2_conditions
-
-def _get_sim_2_tasks_pipeline(task_type: TaskType, new_dataset: Dataset, feature_ratio_tolerance: float):
-    pipeline = _get_sim_1_tasks_pipeline(task_type, new_dataset)
-    pipeline.append({
-        "$match": {
-            "$and": _get_sim_2_ratio_conditions(feature_ratio_tolerance)
-        }
-    })
-
-    return pipeline
 
 def _build_matching_features_field_definition(features_field_name: str, new_features_field_name: str, monotonous_filtering_tolerance: float, mutual_info_tolerance: float):
     return {
@@ -153,29 +94,159 @@ def _build_matching_features_field_definition(features_field_name: str, new_feat
         }
     }
 
-def _get_sim_3_tasks_pipeline(task_type: TaskType, new_dataset: Dataset, feature_ratio_tolerance: float, monotonous_filtering_tolerance: float, mutual_info_tolerance: float, similarity_ratio_tolerance: float):
-    pipeline = _get_sim_2_tasks_pipeline(task_type, new_dataset, feature_ratio_tolerance)
-    pipeline.extend([
+def _get_similar_models_pipeline(query_id: ObjectId, task_type: TaskType, similarity_level: int):
+    pipeline = [
+        {
+            "$sort": {
+                "_id": 1
+            }
+        }, {
+            "$lookup": {
+                "from": Task.get_collection_name(),
+                "localField": "setup.task.$id",
+                "foreignField": "_id",
+                "pipeline": [
+                    {
+                        "$match": {
+                            "taskType": task_type.value
+                        }
+                    }
+                ],
+                "as": "task"
+            }
+        }, {
+            "$unwind": {
+                "path": "$task",
+                "preserveNullAndEmptyArrays": False
+            }
+        }, {
+            "$lookup": {
+                "from": DatasetSimilarity.get_collection_name(),
+                "let": {
+                    "queryId": query_id,
+                    "datasetId": "$task.dataset.$id"
+                },
+                "pipeline": [
+                    {
+                        "$match": {
+                            "$expr": {
+                                "$and": [
+                                    {"$eq": ["$queryId", "$$queryId"]},
+                                    {"$eq": ["$datasetId", "$$datasetId"]}
+                                ]
+                            }
+                        }
+                    }
+                ],
+                "as": "dataset"
+            }
+        }, {
+            "$unwind": {
+                "path": "$dataset",
+                "preserveNullAndEmptyArrays": False
+            }
+        }, {
+            "$match": {
+                **({"dataset.hasSim1": True} if similarity_level >= 1 else {}),
+                **({"dataset.hasSim2": True} if similarity_level >= 2 else {}),
+                **({"dataset.hasSim3": True} if similarity_level >= 3 else {})
+            }
+        }
+    ]
+    return pipeline
+
+def _max_size_stage(size_mb: int):
+    return {
+        "$match": {
+            "$expr": {
+                "$lte": [
+                    { "$bsonSize": "$$ROOT"},
+                    size_mb * 1024 * 1024
+                ]
+            }
+        }
+    }
+
+def _get_dataset_similarity_pipeline(
+        query_id: ObjectId,
+        new_dataset: Dataset,
+        feature_ratio_tolerance: float,
+        monotonous_filtering_tolerance: float,
+        mutual_info_tolerance: float,
+        similarity_ratio_tolerance: float
+):
+    pipeline = [
+        _max_size_stage(8),
         {
             "$addFields": {
-                "numericalFeatures": { "$objectToArray": "$dataset.features.numericalFeatures"},
+                "queryId": query_id,
+                "datasetId": "$_id"
+            }
+        }, {
+            "$unset": "_id"
+        }, {
+            "$lookup": {
+                "from": Dataset.get_collection_name(),
+                "let": {
+                    "newDatasetId": {"$toObjectId": str(new_dataset.id)}
+                },
+                "pipeline": [
+                    {
+                        "$match": {
+                            "$expr": {"$eq": ["$_id", "$$newDatasetId"]}
+                        }
+                    }
+                ],
+                "as": "newDataset"
+            }
+        }, {
+            "$unwind": {
+                "path": "$newDataset",
+                "preserveNullAndEmptyArrays": False
+            }
+        }, {
+            "$match": {
+                "$expr": {"$ne": ["$datasetId", "$newDataset._id"]}
+            }
+        }, {
+            "$addFields": {
+                "hasSim1": {
+                    "$expr": {
+                        "$and": _get_sim_1_ratio_conditions()
+                    }
+                },
+                "hasSim2": {
+                    "$expr": {
+                        "$and": _get_sim_2_ratio_conditions(feature_ratio_tolerance)
+                    }
+                }
+            }
+        }, {
+            "$addFields": {
+                "numericalFeatures": { "$objectToArray": "$features.numericalFeatures"},
                 "newNumericalFeatures": { "$objectToArray": "$newDataset.features.numericalFeatures"},
-                "categoricalFeatures": { "$objectToArray": "$dataset.features.CategoricalFeatures"},
-                "newCategoricalFeatures": { "$objectToArray": "$newDataset.features.CategoricalFeatures"}
+                "categoricalFeatures": { "$objectToArray": "$features.categoricalFeatures"},
+                "newCategoricalFeatures": { "$objectToArray": "$newDataset.features.categoricalFeatures"}
             }
         }, {
             "$addFields": {
                 "matchingNumerical": _build_matching_features_field_definition(
-                    "numericalFeatures", "newNumericalFeatures", monotonous_filtering_tolerance, mutual_info_tolerance),
+                    "numericalFeatures", "newNumericalFeatures",
+                    monotonous_filtering_tolerance, mutual_info_tolerance),
                 "matchingCategorical": _build_matching_features_field_definition(
-                    "categoricalFeatures", "newCategoricalFeatures", monotonous_filtering_tolerance, mutual_info_tolerance)
+                    "categoricalFeatures", "newCategoricalFeatures",
+                    monotonous_filtering_tolerance, mutual_info_tolerance)
             }
         }, {
             "$addFields": {
                 "totalMatches": { "$add": [ { "$size": "$matchingNumerical" }, { "$size": "$matchingCategorical" } ] },
                 "totalFeatures": { "$add": [ { "$size": "$numericalFeatures" }, { "$size": "$categoricalFeatures" } ] },
                 "similarity3": { "$cond": [
-                    { "$gt": [ { "$add": [ { "$size": "$numericalFeatures" }, { "$size": "$categoricalFeatures" } ] }, 0 ] },
+                    {
+                        "$gt": [
+                            { "$add": [ { "$size": "$numericalFeatures" }, { "$size": "$categoricalFeatures" } ] }, 0
+                        ]
+                    },
                     { "$divide": [
                         { "$add": [ { "$size": "$matchingNumerical" }, { "$size": "$matchingCategorical" } ] },
                         { "$add": [ { "$size": "$numericalFeatures" }, { "$size": "$categoricalFeatures" } ] }
@@ -185,92 +256,89 @@ def _get_sim_3_tasks_pipeline(task_type: TaskType, new_dataset: Dataset, feature
                 }
             }
         }, {
-            "$match": {
-                "similarity3": { "$gte": similarity_ratio_tolerance }
+            "$addFields": {
+                "hasSim3": {
+                    "$expr": { "$gte": ["$similarity3", similarity_ratio_tolerance] }
+                }
             }
-        }
-    ])
-    return pipeline
-
-def _get_models_aggregation_extension():
-    pipeline = [
+        }, {
+            "$unset": [
+                "info",
+                "features",
+                "newDataset",
+                "numericalFeatures",
+                "categoricalFeatures",
+                "newNumericalFeatures",
+                "newCategoricalFeatures"
+            ]
+        },
+        _max_size_stage(14),
         {
             "$set": {
-                "dataset": {
-                    "$mergeObjects": [
-                        { "$literal": { "$ref": Dataset.get_collection_name()}},
-                        {
-                            "$arrayToObject": [
-                                [{"k": {"$literal": "$id"}, "v": "$dataset._id"}]
-                            ]
-                        }
-                    ]
-                }
+                "createdAt": { "$toDate": "$$NOW" },
             }
         }, {
-            "$lookup": {
-                "from": Model.get_collection_name(),
-                "localField": "_id",
-                "foreignField": "setup.task.$id",
-                "as": "models"
+            "$merge": {
+                "into": "dataset_similarities",
+                "on": ["queryId", "datasetId"],
+                "whenMatched": "replace",
+                "whenNotMatched": "insert"
             }
-        }, {
-            "$unwind": {
-                "path": "$models",
-                "preserveNullAndEmptyArrays": False
-            }
-        }, {
-            "$replaceRoot": {
-                "newRoot": {
-                    "$mergeObjects": [
-                        "$models",
-                        {
-                            "setup": {
-                                "$mergeObjects": [
-                                    { "$ifNull": ["$models.setup", {}]},
-                                    { "task": "$$ROOT" }
-                                ]
-                            }
-                        }
-                    ]
-                }
-            }
-        }, {
-            "$lookup": {
-                "from": Implementation.get_collection_name(),
-                "localField": "setup.implementation.$id",
-                "foreignField": "_id",
-                "as": "setup.implementation"
-            }
-        }, {
-            "$unwind": {
-                "path": "$setup.implementation",
-            }
-        }, {
-            "$unset": "setup.task.models"
         }
     ]
-
     return pipeline
+
+def _get_batch_suffix(offset: int, limit: int):
+    return [
+        { "$skip": offset },
+        { "$limit": limit }
+    ]
 
 # Public functions to get models
 
-async def get_sim_0_models(task_type: TaskType):
-    pipeline = _get_sim_0_tasks_pipeline(task_type)
-    pipeline.extend(_get_models_aggregation_extension())
-    return await Task.find(with_children=True).aggregate(pipeline, projection_model=model_projection.FullyJoinedModelView).to_list()
+async def calculate_dataset_similarity(
+        query_id: ObjectId,
+        new_dataset: Dataset,
+        feature_ratio_tolerance: float,
+        monotonous_filtering_tolerance: float,
+        mutual_info_tolerance: float,
+        similarity_ratio_tolerance: float
+):
+    pipeline = _get_dataset_similarity_pipeline(query_id, new_dataset, feature_ratio_tolerance,
+                                                monotonous_filtering_tolerance, mutual_info_tolerance,
+                                                similarity_ratio_tolerance)
+    return await Dataset.find().aggregate(pipeline).to_list()
 
-async def get_sim_1_models(task_type: TaskType, new_dataset: Dataset):
-    pipeline = _get_sim_1_tasks_pipeline(task_type, new_dataset)
-    pipeline.extend(_get_models_aggregation_extension())
-    return await Task.find(with_children=True).aggregate(pipeline, projection_model=model_projection.FullyJoinedModelView).to_list()
+async def get_similar_models(query_id: ObjectId, task_type: TaskType, similarity_level: int):
+    pipeline = _get_similar_models_pipeline(query_id, task_type, similarity_level)
+    # check if similar datasets exists
+    count = await DatasetSimilarity.find({
+        "queryId": query_id,
+        **({"hasSim1": True} if similarity_level >= 1 else {}),
+        **({"hasSim2": True} if similarity_level >= 2 else {}),
+        **({"hasSim3": True} if similarity_level >= 3 else {})
+    }).count()
+    if count == 0:
+        return []
 
-async def get_sim_2_models(task_type: TaskType, new_dataset: Dataset, feature_ratio_tolerance: float):
-    pipeline = _get_sim_2_tasks_pipeline(task_type, new_dataset, feature_ratio_tolerance)
-    pipeline.extend(_get_models_aggregation_extension())
-    return await Task.find(with_children=True).aggregate(pipeline, projection_model=model_projection.FullyJoinedModelView).to_list()
+    models_limit: Optional[int] = current_app.config["PROCESS_MODEL_LIMIT"]
+    current_app.logger.info(f"{count} similar datasets found with similarity level {similarity_level}. Fetching {models_limit if models_limit is not None else 'all'} related models...")
+    models: List[ModelView] = []
+    batch_size = 10_000
 
-async def get_sim_3_models(task_type: TaskType, new_dataset: Dataset, feature_ratio_tolerance: float, monotonous_filtering_tolerance: float, mutual_info_tolerance: float, similarity_ratio_tolerance: float):
-    pipeline = _get_sim_3_tasks_pipeline(task_type, new_dataset, feature_ratio_tolerance, monotonous_filtering_tolerance, mutual_info_tolerance, similarity_ratio_tolerance)
-    pipeline.extend(_get_models_aggregation_extension())
-    return await Task.find(with_children=True).aggregate(pipeline, projection_model=model_projection.FullyJoinedModelView).to_list()
+    while True:
+        next_batch_size = min(batch_size, models_limit - len(models)) if models_limit is not None else batch_size
+        batch = await Model.find(with_children=True).aggregate(
+            aggregation_pipeline=[*pipeline, *_get_batch_suffix(len(models), next_batch_size)],
+            projection_model=ModelView
+        ).to_list()
+        if not batch:
+            break
+        models.extend(batch)
+        current_app.logger.info(f"Retrieved {len(models)} models so far")
+        if models_limit is not None and len(models) >= models_limit:
+            break
+        if len(batch) < batch_size:
+            break
+
+    return models
