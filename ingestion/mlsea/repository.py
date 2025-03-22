@@ -238,8 +238,8 @@ class MLSeaRepository:
                     raise ex
                 print(f"Error executing query: {ex}")
                 print(f"Retrying in {backoff_time} seconds...")
-                print(f"Retrying... ({try_no + 1})")
                 time.sleep(backoff_time)
+                print(f"Retrying... ({try_no + 1})")
                 backoff_time *= 2
 
     def _ensure_rate_limit(self):
