@@ -26,7 +26,8 @@ class DatasetSimilarity(Document):
         validate_on_save = True
         indexes = [
             IndexModel([("datasetId", ASCENDING), ("queryId", ASCENDING)], name="datasetId_queryId_", unique=True),
-            IndexModel("createdAt", name="createdAt_", expireAfterSeconds=2*60*60),
+            IndexModel("queryId", name="queryId_"),
+            IndexModel("createdAt", name="createdAt_", expireAfterSeconds=12*60*60),
         ]
 
     class Config:

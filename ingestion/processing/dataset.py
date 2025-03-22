@@ -94,15 +94,15 @@ def _recognize_classification_output_type(df: pd.DataFrame, target_feature: str)
         if len(df[target_feature].cat.categories) == 2:
             return TargetFeatureType.BINARY
         elif len(df[target_feature].cat.categories) > 2:
-            return TargetFeatureType.MULTICLASS
+            return TargetFeatureType.CATEGORICAL
         else:
             raise ValueError("Unrecognized type. Category with less than 2 categories")
     elif df.dtypes[target_feature] == 'int64':
         if len(df[target_feature].unique()) == 2:
             return TargetFeatureType.BINARY
         elif len(df[target_feature].unique()) > 2:
-            return TargetFeatureType.MULTICLASS
+            return TargetFeatureType.CATEGORICAL
     elif df.dtypes[target_feature] in ['float64', 'numeric']:
-        return TargetFeatureType.REGRESSION
+        return TargetFeatureType.NUMERICAL
     else:
         raise ValueError("Unrecognized type")

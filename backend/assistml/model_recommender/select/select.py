@@ -2,7 +2,8 @@ import time
 
 from quart import current_app
 
-from assistml.model_recommender.select.aggregation_pipelines import calculate_dataset_similarity, get_similar_models
+from assistml.model_recommender.select.aggregation_pipelines import calculate_dataset_similarity, \
+    clear_dataset_similarity_context, get_similar_models
 from common.data import Dataset, Query
 from common.data.projection.model import ModelView
 
@@ -35,6 +36,7 @@ async def select_models_on_dataset_similarity(query: Query) -> tuple[list[ModelV
         if len(models) > 0:
             current_app.logger.info(f"Found {len(models)} models with similarity level {similarity_level} in {sim_end_time - sim_start_time} seconds")
             current_app.logger.info("Total time for selecting models based on dataset similarity: {} seconds".format(sim_end_time - start_time))
+            await clear_dataset_similarity_context(query.id)
             return models, similarity_level
 
     current_app.logger.info("No models were found")
