@@ -1,5 +1,6 @@
 import json
 from enum import Enum
+from typing import Union
 
 import pandas as pd
 import math
@@ -37,10 +38,10 @@ class DataProfiler():
     ########################################## Function Definition ###########################################
     ##########################################################################################################
 
-    def __init__(self, dataset_name, target_label, target_feature_type):
+    def __init__(self, dataset_name, target_label, target_feature_type: Union[str, TargetFeatureType]):
         self.dataset_name = dataset_name
         self.class_label = target_label
-        self.target_feature_type = target_feature_type
+        self.target_feature_type = TargetFeatureType[target_feature_type] if isinstance(target_feature_type, str) else target_feature_type
         self.nr_total_features = 0
         self.nr_analyzed_features = 0
         self.df = ''
@@ -58,7 +59,7 @@ class DataProfiler():
         self.json_data["features"] = {}
         self.json_data["info"]["datasetName"] = self.dataset_name
         self.json_data["info"]["targetLabel"] = self.class_label
-        self.json_data["info"]["targetFeatureType"] = self.target_feature_type
+        self.json_data["info"]["targetFeatureType"] = target_feature_type if isinstance(target_feature_type, str) else target_feature_type.value
 
     # Return a new dataset after dropping missing values. And return Number of missing values in each column.
     def handle_missing_values(self, df: pd.DataFrame):
@@ -379,7 +380,7 @@ class DataProfiler():
         if not (len(numericalFeatures) == 0):
             anova_f1 = f_classif(numericalFeatures, self.df[self.class_label])[0]
             anova_pvalue = f_classif(numericalFeatures, self.df[self.class_label])[1]
-            if self.target_feature_type in [TargetFeatureType.BINARY, TargetFeatureType.MULTICLASS]:
+            if self.target_feature_type in [TargetFeatureType.BINARY, TargetFeatureType.CATEGORICAL]:
                 y = self.df[self.class_label]
                 mi = mutual_info_classif(numericalFeatures, self.df[self.class_label], random_state=42)
             else:

@@ -32,4 +32,4 @@ async def analyse_dataset():
         db_write_status=db_write_status
     )
 
-    return jsonify(response.model_dump(by_alias=True))
+    return jsonify(response.model_dump(by_alias=True, mode="json"))

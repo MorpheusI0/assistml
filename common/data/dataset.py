@@ -12,10 +12,19 @@ Task = ForwardRef("Task")
 DatasetDescriptorNormalizer = ForwardRef("DatasetDescriptorNormalizer")
 
 
-class TargetFeatureType(str, Enum):
-    BINARY = "binary"
-    MULTICLASS = "multiclass"
-    REGRESSION = "regression"
+class TargetFeatureType(Enum):
+    BINARY = "binary", "Binary"
+    CATEGORICAL = "categorical", "Categorical"
+    NUMERICAL = "numerical", "Numerical"
+
+    def __new__(cls, value: str, display_name: str):
+        self = object.__new__(cls)
+        self._value_ = value
+        self.display_name = display_name
+        return self
+
+    def __hash__(self):
+        return hash(self.value)
 
 class Info(CustomBaseModel):
     mlsea_uri: Optional[str] = None

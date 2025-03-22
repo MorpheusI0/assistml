@@ -1,6 +1,8 @@
 from dash import html, dcc
 import dash_bootstrap_components as dbc
 
+from common.data.dataset import TargetFeatureType
+
 
 def create_dataset_characteristics():
     csv_upload = html.Div(
@@ -56,9 +58,8 @@ def create_dataset_characteristics():
                              'width': '100%', "background-color": "transparent", "color": "black"}),
             dcc.Dropdown(id="class_feature_type",
                          options=[
-                             {'label': 'Binary', 'value': 'binary'},
-                             {'label': 'Categorical', 'value': 'categorical'},
-                             {'label': 'Numerical', 'value': 'numerical'}
+                             {'label': feature_type.display_name, 'value': feature_type.value}
+                             for feature_type in TargetFeatureType
                          ],
                          placeholder="Select a Datatype",
                          style={'width': '100%', 'color': 'black'}),

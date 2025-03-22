@@ -1,4 +1,5 @@
 import csv
+import io
 import os
 
 import arff
@@ -57,8 +58,8 @@ async def _load_file(file: FileStorage) -> pd.DataFrame:
     decoded_data = data.decode("utf-8")
     if file.filename.endswith(".csv"):
         sniffer = csv.Sniffer()
-        dialect = sniffer.sniff(file.stream.read(1024).decode("utf-8"))
-        df = pd.read_csv(decoded_data, delimiter=str(dialect.delimiter))
+        dialect = sniffer.sniff(decoded_data.splitlines()[0])
+        df = pd.read_csv(io.StringIO(decoded_data), delimiter=str(dialect.delimiter))
 
     elif file.filename.endswith(".arff"):
         current_app.logger.info(f"Loading ARFF file...")
