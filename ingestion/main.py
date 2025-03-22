@@ -12,10 +12,17 @@ def process_initial_offset(entity: str, entity_id: int):
     offset_ids = {entity: entity_id}
     if 'run' in offset_ids:
         task_id = mlsea.retrieve_task_id_for_run_id(offset_ids['run'])
+        print(f"run {offset_ids['run']} belongs to task {task_id}")
         offset_ids['task'] = task_id
     if 'task' in offset_ids:
         dataset_id = mlsea.retrieve_dataset_id_for_task_id(offset_ids['task'])
+        print(f"task {offset_ids['task']} belongs to dataset {dataset_id}")
         offset_ids['dataset'] = dataset_id
+
+    if 'run' in offset_ids:
+        offset_ids['task'] -= 1
+    if 'task' in offset_ids:
+        offset_ids['dataset'] -= 1
     return offset_ids
 
 async def main(initial_offset=None, head=None, task_type=None):
