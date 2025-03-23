@@ -358,7 +358,7 @@ class DataProfiler():
         nr_categorical_features = len(self.categorical_features)
         nr_datetime_features = len(self.datetime_features)
         nr_unstructured_features = len(self.unstructured_features)
-        self.json_data["info"]["numericRatio"] = float("{:.2f}".format(nr_numeric_features / self.nr_total_features))
+        self.json_data["info"]["numericalRatio"] = float("{:.2f}".format(nr_numeric_features / self.nr_total_features))
         self.json_data["info"]["categoricalRatio"] = float(
             "{:.2f}".format(nr_categorical_features / self.nr_total_features))
         self.json_data["info"]["datetimeRatio"] = float("{:.2f}".format(nr_datetime_features / self.nr_total_features))

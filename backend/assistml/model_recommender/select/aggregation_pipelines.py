@@ -42,7 +42,7 @@ def _get_sim_1_ratio_conditions():
 def _get_sim_2_ratio_conditions(feature_ratio_tolerance: float):
     sim_2_conditions = []
     for ratio_field_name in RATIO_FIELD_NAMES:
-        cur_dataset_ratio_field_path = f"$dataset.info.{ratio_field_name}"
+        cur_dataset_ratio_field_path = f"$info.{ratio_field_name}"
         new_dataset_ratio_field_path = f"$newDataset.info.{ratio_field_name}"
 
         sim_2_conditions.append({

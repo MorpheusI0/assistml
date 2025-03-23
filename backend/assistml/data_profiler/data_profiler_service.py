@@ -94,7 +94,7 @@ async def _check_for_similar_dataset_in_db(data_profile) -> dataset_projection.E
         "info.observations": data_profile.info.observations,
         "info.nrTotalFeatures": data_profile.info.nr_total_features,
         "info.nrAnalyzedFeatures": data_profile.info.nr_analyzed_features,
-        "info.numericRatio": data_profile.info.numeric_ratio,
+        "info.numericalRatio": data_profile.info.numerical_ratio,
         "info.categoricalRatio": data_profile.info.categorical_ratio,
         "info.datetimeRatio": data_profile.info.datetime_ratio,
         "info.unstructuredRatio": data_profile.info.unstructured_ratio,

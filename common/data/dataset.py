@@ -6,7 +6,7 @@ from beanie import Document, BackLink
 from pydantic import Field
 from pymongo import IndexModel
 
-from common.data.utils import CustomBaseModel, alias_generator
+from .utils import CustomBaseModel, alias_generator
 
 Task = ForwardRef("Task")
 DatasetDescriptorNormalizer = ForwardRef("DatasetDescriptorNormalizer")
@@ -35,7 +35,7 @@ class Info(CustomBaseModel):
     analyzed_observations: int
     nr_analyzed_features: int
     nr_total_features: int
-    numeric_ratio: float
+    numerical_ratio: float
     categorical_ratio: float
     datetime_ratio: float
     unstructured_ratio: float
@@ -137,14 +137,14 @@ class Dataset(Document):
         """
         base_observations = np.log1p(self.info.observations)
         base_features = np.log1p(self.info.nr_total_features)
-        base_numeric_ratio = self.info.numeric_ratio
+        base_numerical_ratio = self.info.numerical_ratio
         base_categorical_ratio = self.info.categorical_ratio
         base_datetime_ratio = self.info.datetime_ratio
         base_unstructured_ratio = self.info.unstructured_ratio
         return np.array([
             base_observations,
             base_features,
-            base_numeric_ratio,
+            base_numerical_ratio,
             base_categorical_ratio,
             base_datetime_ratio,
             base_unstructured_ratio
