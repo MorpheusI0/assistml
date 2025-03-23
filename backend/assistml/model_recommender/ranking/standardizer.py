@@ -76,10 +76,18 @@ class Standardizer:
         """
         self.is_numeric = self._determine_numeric(values)
         if self.is_numeric:
-            # Convert all values to float
-            numeric_values = [float(v) for v in values]
+            # Convert all values to float and keep only the numeric ones
+            numeric_values = []
+            outliers = []
+            for v in values:
+                try:
+                    numeric_values.append(float(v))
+                except (ValueError, TypeError):
+                    outliers.append(v)
             self.is_integer = all(v.is_integer() for v in numeric_values)
             self._fit_numeric(numeric_values)
+            if outliers:
+                self._fit_categorical(outliers)
         else:
             self._fit_categorical(values)
 
@@ -111,12 +119,32 @@ class Standardizer:
 
         if not isinstance(values, list):
             return self.transform([values])[0]
-        if self.is_numeric:
-            # Ensure values are numeric
-            numeric_values = [float(v) for v in values]
-            return self._transform_numeric(numeric_values)
-        else:
+
+        if not self.is_numeric:
             return self._transform_categorical(values)
+
+        numerics, outliers = [], []
+        for idx, val in enumerate(values):
+            try:
+                numerics.append((idx, float(val)))
+            except (ValueError, TypeError):
+                outliers.append((idx, val))
+
+        transformed: List[Union[str, None]] = [None] * len(values)
+
+        if numerics:
+            indices, nums = zip(*numerics)
+            transformed_nums = self._transform_numeric(nums)
+            for i, val in zip(indices, transformed_nums):
+                transformed[i] = val
+
+        if outliers:
+            indices, cats = zip(*outliers)
+            transformed_cats = self._transform_categorical(cats)
+            for i, val in zip(indices, transformed_cats):
+                transformed[i] = val
+
+        return transformed
 
     def _inverse_transform_numeric(self, transformed: List[str]) -> List[Union[float, int]]:
         """
