@@ -1,8 +1,8 @@
 # AssistML: An alternative to AutoML recommending ML Solutions
 
-> 11.03.2025
+> 24.03.2025
 
-<img src="./assistML.png"/>
+<img src="docs/resources/assistML.png" alt="assistML logo"/>
 
 ## Abstract
 
@@ -14,17 +14,26 @@ This paper explains how AssistML, a novel concept to recommend ML solutions, i. 
 
 - **backend**: The core system that recommends implementations and configurations for new datasets. Main script is `backend/run.py`
 - **frontend**: User interface to make the backend accessible and present its response. Main script is `frontend/run.py`
-- **ingestion**: A Pipeline which creates a metadata repository based on OpenML while utilizing MLSea. Main script is `ingestion/main.py`
+- **ingestion**: A Pipeline which creates a metadata repository based on OpenML while utilizing [MLSea](https://dtai-kg.github.io/MLSea-KGC/). Can be executed with CLI as `python ingestion/cli.py` (see option `--help` for more information).
 - **common**: Shared code between the frontend, backend and the ingestion. Contains the data models of the metadata repository and data transfer objects for the communication between the frontend and the backend.
+- **mongodb**: Configuration files used by dockerized MongoDB.
 
-## Reproducibility
+## Architecture
 
-The following steps need to be carried out to run the prototype of AssistML and reproduce the evaluation setup:
+### Backend
+<img src="docs/resources/architecture_backend.svg" alt="Architecture of the backend system."/>
+
+### Ingestion
+<img src="docs/resources/architecture_ingestion.svg" alt="Architecture of the ingestion pipeline."/>
+
+## Getting started
 
 1. Clone the repository.
 2. Launch the docker compose configuration
-3. In a web browser go to http://localhost:8050
-4. To reproduce evaluation setting q-steel-20, watch the video q-steel-20.mkv (see below). Other evaluation settings can be reproduced in a similar manner.
+3. Modify the .env file of the ingestion pipeline to point to a running SPARQL endpoint containing the [MLSea](https://dtai-kg.github.io/MLSea-KGC/) metadata.
+4. Run the ingestion pipeline to create the metadata repository (using the OpenML API)
+5. In a web browser go to http://localhost:8050
+
 
 ## Dockerized Version
 
@@ -66,10 +75,6 @@ This repository contains a dockerized version of the project.
     ```bash
     docker-compose logs
     ```
-
-## Demo Video
-
-A demonstration video is provided: *[q-steel-20.mkv](q-steel-20.mkv)*
 
 ## Disclaimer
 
