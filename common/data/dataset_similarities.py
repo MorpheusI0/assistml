@@ -5,7 +5,7 @@ from beanie import Document
 from bson import ObjectId
 from pymongo import ASCENDING, IndexModel
 
-from common.data.utils import alias_generator
+from .utils import alias_generator
 
 
 class DatasetSimilarity(Document):
@@ -26,6 +26,7 @@ class DatasetSimilarity(Document):
         validate_on_save = True
         indexes = [
             IndexModel([("datasetId", ASCENDING), ("queryId", ASCENDING)], name="datasetId_queryId_", unique=True),
+            IndexModel([("queryId", ASCENDING), ("datasetId", ASCENDING)], name="queryId_datasetId_", unique=True),
             IndexModel("queryId", name="queryId_"),
             IndexModel("createdAt", name="createdAt_", expireAfterSeconds=12*60*60),
         ]

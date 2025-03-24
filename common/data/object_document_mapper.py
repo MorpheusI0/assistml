@@ -7,6 +7,7 @@ from .dataset import Dataset
 from .implementation import Implementation
 from .model import Model
 from .query import Query
+from .similar_models import SimilarModels
 from .task import Task, ClassificationTask, RegressionTask, ClusteringTask, LearningCurveTask
 
 
@@ -30,5 +31,5 @@ class ObjectDocumentMapper:
         await init_beanie(
             database=self._db,
             document_models=[Dataset, Task, ClassificationTask, RegressionTask, ClusteringTask, LearningCurveTask,
-                             Implementation, Model, Query, DatasetSimilarity]
+                             Implementation, Model, Query, DatasetSimilarity, SimilarModels]
         )

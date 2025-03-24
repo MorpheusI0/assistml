@@ -7,6 +7,7 @@ from quart import current_app
 from common.data import Dataset, DatasetSimilarity, Model, Task
 from common.data.task import TaskType
 from common.data.projection.model import ModelView
+from common.data.similar_models import SimilarModels
 
 RATIO_FIELD_NAMES = [
     "categoricalRatio",
@@ -95,27 +96,28 @@ def _build_matching_features_field_definition(features_field_name: str, new_feat
         }
     }
 
-def _get_similar_models_pipeline(
+def _get_calculate_similar_tasks_pipeline(
         query_id: ObjectId,
         task_type: TaskType,
         similarity_level: int,
-        limit: int = None,
-        offset_id: ObjectId = None):
+):
     pipeline = [
-        *([{
-            "$match": {
-                "_id": {"$gt": offset_id}
-            }
-        }] if offset_id else []),
         {
+            "$match": {
+                "queryId": query_id,
+                **({"hasSim1": True} if similarity_level >= 1 else {}),
+                **({"hasSim2": True} if similarity_level >= 2 else {}),
+                **({"hasSim3": True} if similarity_level >= 3 else {})
+            }
+        }, {
             "$sort": {
-                "_id": 1
+                "datasetId": 1
             }
         }, {
             "$lookup": {
                 "from": Task.get_collection_name(),
-                "localField": "setup.task.$id",
-                "foreignField": "_id",
+                "localField": "datasetId",
+                "foreignField": "dataset.$id",
                 "pipeline": [
                     {
                         "$match": {
@@ -130,38 +132,94 @@ def _get_similar_models_pipeline(
                 "path": "$task",
                 "preserveNullAndEmptyArrays": False
             }
-        }, {
+        }
+    ]
+    return pipeline
+
+def _get_calculate_similar_models_pipeline(
+        query_id: ObjectId,
+        task_type: TaskType,
+        similarity_level: int,
+        model_per_task_limit: Optional[int] = None
+):
+    pipeline = [
+        *_get_calculate_similar_tasks_pipeline(query_id, task_type, similarity_level),
+        {
             "$lookup": {
-                "from": DatasetSimilarity.get_collection_name(),
-                "let": {
-                    "queryId": query_id,
-                    "datasetId": "$task.dataset.$id"
-                },
-                "pipeline": [
+                "from": Model.get_collection_name(),
+                "localField": "task._id",
+                "foreignField": "setup.task.$id",
+                **({"pipeline": [
                     {
-                        "$match": {
-                            "$expr": {
-                                "$and": [
-                                    {"$eq": ["$queryId", "$$queryId"]},
-                                    {"$eq": ["$datasetId", "$$datasetId"]}
-                                ]
-                            }
-                        }
-                    }, {
-                        "$match": {
-                            **({"hasSim1": True} if similarity_level >= 1 else {}),
-                            **({"hasSim2": True} if similarity_level >= 2 else {}),
-                            **({"hasSim3": True} if similarity_level >= 3 else {})
-                        }
+                        "$limit": model_per_task_limit
                     }
-                ],
-                "as": "dataset"
+                ]} if model_per_task_limit else {}),
+                "as": "model"
             }
         }, {
             "$unwind": {
-                "path": "$dataset",
+                "path": "$model",
+                "includeArrayIndex": "model.taskModelIdx",
                 "preserveNullAndEmptyArrays": False
             }
+        }, {
+            "$addFields": {
+                "model.queryId": "$queryId",
+                "model.taskId": "$task._id"
+            }
+        }, {
+            "$replaceRoot": {
+                "newRoot": "$model"
+            }
+        }, {
+            "$set": {
+                "modelId": "$_id",
+                "createdAt": { "$toDate": "$$NOW" },
+            }
+        }, {
+            "$unset": "_id"
+        }, {
+            "$merge": {
+                "into": SimilarModels.get_collection_name(),
+                "on": ["queryId", "modelId"],
+                "whenMatched": "replace",
+                "whenNotMatched": "insert"
+            }
+        }
+    ]
+    return pipeline
+
+def _get_task_count_of_dataset_similarities_pipeline(
+        query_id: ObjectId,
+        task_type: TaskType,
+        similarity_level: int,
+):
+    return [
+            *_get_calculate_similar_tasks_pipeline(query_id, task_type, similarity_level),
+            {"$count": "count"}
+        ]
+
+def _get_fetch_similar_models_pipeline(
+        query_id: ObjectId,
+        limit: int = None,
+        offset_id: ObjectId = None):
+    pipeline = [
+        {
+            "$match": {
+                "queryId": query_id,
+                **({"modelId": {"$gt": offset_id}} if offset_id else {})
+            }
+        }, {
+            "$sort": {
+                #"taskModelIdx": 1, # idea is fetch models evenly distributed across tasks, but breaks cursor pagination
+                "modelId": 1
+            }
+        },  {
+            "$set": {
+                "_id": "$modelId"
+            }
+        }, {
+            "$unset": ["queryId", "modelId", "taskModelIdx"]
         },
         *([{
             "$limit": limit
@@ -331,6 +389,26 @@ async def calculate_dataset_similarity(
                                                 similarity_ratio_tolerance)
     return await _execute_with_retry(Dataset.find().aggregate(pipeline).to_list())
 
+async def calculate_similar_models(query_id: ObjectId, task_type: TaskType, similarity_level: int):
+    models_limit: Optional[int] = current_app.config["PROCESS_MODEL_LIMIT"]
+    current_app.logger.info(f"Finding {f'up to {models_limit}' if models_limit is not None else 'all'} related models...")
+
+    # Heuristic to limit the number of models per task
+    models_per_task_limit = None
+    if models_limit is not None:
+        pipeline = _get_task_count_of_dataset_similarities_pipeline(query_id, task_type, similarity_level)
+        tasks_count = (await _execute_with_retry(
+            DatasetSimilarity.find().aggregate(pipeline).to_list()
+        ))[0]["count"]
+        models_per_task_limit = models_limit // (tasks_count / 2)
+        current_app.logger.info(f"{tasks_count} tasks found, limiting models per task to {models_per_task_limit}")
+
+    pipeline = _get_calculate_similar_models_pipeline(query_id, task_type, similarity_level, models_per_task_limit)
+    await _execute_with_retry(DatasetSimilarity.find().aggregate(pipeline).to_list())
+
+    matched_models_count = await SimilarModels.find({"queryId": query_id}).count()
+    current_app.logger.info(f"Found {matched_models_count} models")
+    return matched_models_count
 
 async def get_similar_models(query_id: ObjectId, task_type: TaskType, similarity_level: int):
     # check if similar datasets exists
@@ -344,26 +422,25 @@ async def get_similar_models(query_id: ObjectId, task_type: TaskType, similarity
         return []
 
     models_limit: Optional[int] = current_app.config["PROCESS_MODEL_LIMIT"]
-    current_app.logger.info(f"{count} similar datasets found with similarity level {similarity_level}. Fetching {f'up to {models_limit}' if models_limit is not None else 'all'} related models...")
+    current_app.logger.info(f"{count} similar datasets found with similarity level {similarity_level}.")
+
+    matched_models_count = await calculate_similar_models(query_id, task_type, similarity_level)
     models: List[ModelView] = []
     batch_size = 1_000
     offset_id = None
 
     while True:
         next_batch_size = min(batch_size, models_limit - len(models)) if models_limit is not None else batch_size
-        pipeline = _get_similar_models_pipeline(query_id, task_type, similarity_level, next_batch_size, offset_id)
+        pipeline = _get_fetch_similar_models_pipeline(query_id, next_batch_size, offset_id)
 
         batch = await _execute_with_retry(
-            Model
-                .find(with_children=True)
-                .aggregate(aggregation_pipeline=pipeline, projection_model=ModelView)
-                .to_list()
-             )
+                    SimilarModels.find().aggregate(aggregation_pipeline=pipeline, projection_model=ModelView).to_list()
+                )
         if not batch:
             break
         models.extend(batch)
         offset_id = batch[-1].id
-        current_app.logger.info(f"Retrieved {len(models)} models so far")
+        current_app.logger.info(f"Retrieved {len(models)} / {min(matched_models_count, models_limit)} models so far {len(models)*100/min(matched_models_count, models_limit)} %.")
         if models_limit is not None and len(models) >= models_limit:
             break
         if len(batch) < batch_size:
@@ -374,3 +451,7 @@ async def get_similar_models(query_id: ObjectId, task_type: TaskType, similarity
 async def clear_dataset_similarity_context(query_id: ObjectId):
     await _execute_with_retry(DatasetSimilarity.find({"queryId": query_id}).delete())
     current_app.logger.info("Cleared dataset similarity context")
+
+async def clear_similar_models_context(query_id: ObjectId):
+    await _execute_with_retry(SimilarModels.find({"queryId": query_id}).delete())
+    current_app.logger.info("Cleared similar models context")
