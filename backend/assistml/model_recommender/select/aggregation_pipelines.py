@@ -360,11 +360,11 @@ def _get_dataset_similarity_pipeline(
     ]
     return pipeline
 
-async def _execute_with_retry(async_func, max_retries: int = 5):
+async def _execute_with_retry(async_func, *args, max_retries: int = 5, **kwargs):
     backoff_time = 1  # seconds
     for try_no in range(max_retries):
         try:
-            return await async_func
+            return await async_func(*args, **kwargs)
         except Exception as e:
             current_app.logger.error(f"Error executing function: {e}")
             if try_no == max_retries - 1:
@@ -387,7 +387,7 @@ async def calculate_dataset_similarity(
     pipeline = _get_dataset_similarity_pipeline(query_id, new_dataset, feature_ratio_tolerance,
                                                 monotonous_filtering_tolerance, mutual_info_tolerance,
                                                 similarity_ratio_tolerance)
-    return await _execute_with_retry(Dataset.find().aggregate(pipeline).to_list())
+    return await _execute_with_retry(Dataset.find().aggregate(pipeline).to_list)
 
 async def calculate_similar_models(query_id: ObjectId, task_type: TaskType, similarity_level: int):
     models_limit: Optional[int] = current_app.config["PROCESS_MODEL_LIMIT"]
@@ -398,13 +398,13 @@ async def calculate_similar_models(query_id: ObjectId, task_type: TaskType, simi
     if models_limit is not None:
         pipeline = _get_task_count_of_dataset_similarities_pipeline(query_id, task_type, similarity_level)
         tasks_count = (await _execute_with_retry(
-            DatasetSimilarity.find().aggregate(pipeline).to_list()
+            DatasetSimilarity.find().aggregate(pipeline).to_list
         ))[0]["count"]
         models_per_task_limit = models_limit // (tasks_count / 2)
         current_app.logger.info(f"{tasks_count} tasks found, limiting models per task to {models_per_task_limit}")
 
     pipeline = _get_calculate_similar_models_pipeline(query_id, task_type, similarity_level, models_per_task_limit)
-    await _execute_with_retry(DatasetSimilarity.find().aggregate(pipeline).to_list())
+    await _execute_with_retry(DatasetSimilarity.find().aggregate(pipeline).to_list)
 
     matched_models_count = await SimilarModels.find({"queryId": query_id}).count()
     current_app.logger.info(f"Found {matched_models_count} models")
@@ -434,7 +434,7 @@ async def get_similar_models(query_id: ObjectId, task_type: TaskType, similarity
         pipeline = _get_fetch_similar_models_pipeline(query_id, next_batch_size, offset_id)
 
         batch = await _execute_with_retry(
-                    SimilarModels.find().aggregate(aggregation_pipeline=pipeline, projection_model=ModelView).to_list()
+                    SimilarModels.find().aggregate(aggregation_pipeline=pipeline, projection_model=ModelView).to_list
                 )
         if not batch:
             break
@@ -449,9 +449,9 @@ async def get_similar_models(query_id: ObjectId, task_type: TaskType, similarity
     return models
 
 async def clear_dataset_similarity_context(query_id: ObjectId):
-    await _execute_with_retry(DatasetSimilarity.find({"queryId": query_id}).delete())
+    await _execute_with_retry(DatasetSimilarity.find({"queryId": query_id}).delete)
     current_app.logger.info("Cleared dataset similarity context")
 
 async def clear_similar_models_context(query_id: ObjectId):
-    await _execute_with_retry(SimilarModels.find({"queryId": query_id}).delete())
+    await _execute_with_retry(SimilarModels.find({"queryId": query_id}).delete)
     current_app.logger.info("Cleared similar models context")
