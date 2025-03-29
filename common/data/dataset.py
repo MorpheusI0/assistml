@@ -174,8 +174,7 @@ class Dataset(Document):
                     max_value,
                     outliers_ratio,
                     monotonous_filtering,
-                    anova_f1,
-                    anova_pvalue]
+                ]
                 if any([np.isnan(value) for value in feature_values]):
                     continue
                 numeric_stats.append(feature_values)
