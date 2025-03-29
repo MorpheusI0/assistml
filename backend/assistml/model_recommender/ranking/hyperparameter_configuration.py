@@ -23,11 +23,14 @@ class HyperparameterConfiguration:
             parameter_implementation = await document_cache.get_implementation(hyperparameter.implementation)
             if hyperparameter.name not in parameter_implementation.parameters:
                 raise ValueError(f"Hyperparameter {hyperparameter.name} not found in implementation {parameter_implementation.title}")
-            if hyperparameter.value == parameter_implementation.parameters[hyperparameter.name].default_value:
+            if hyperparameter.value is not None and hyperparameter.value == parameter_implementation.parameters[hyperparameter.name].default_value:
                 continue  # do not store default values
             if parameter_implementation.id not in configuration:
                 configuration[parameter_implementation.id] = {}
-            configuration[parameter_implementation.id][hyperparameter.name] = hyperparameter.value
+            if hyperparameter.data_type == "flag":
+                configuration[parameter_implementation.id][hyperparameter.name] = True
+            else:
+                configuration[parameter_implementation.id][hyperparameter.name] = hyperparameter.value
         return cls(configuration, hyperparameter_analytics)
 
     @staticmethod

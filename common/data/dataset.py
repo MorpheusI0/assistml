@@ -180,11 +180,15 @@ class Dataset(Document):
                     continue
                 numeric_stats.append(feature_values)
             numeric_stats = np.array(numeric_stats)
-            numeric_agg_mean = np.mean(numeric_stats, axis=0)
-            numeric_agg_std = np.std(numeric_stats, axis=0)
+            if numeric_stats.size > 0:
+                numeric_agg_mean = np.mean(numeric_stats, axis=0)
+                numeric_agg_std = np.std(numeric_stats, axis=0)
+            else:
+                numeric_agg_mean = np.zeros(7)
+                numeric_agg_std = np.zeros(7)
         else:
-            numeric_agg_mean = np.zeros(7)
-            numeric_agg_std = np.zeros(7)
+            numeric_agg_mean = np.zeros(5)
+            numeric_agg_std = np.zeros(5)
         return np.hstack([numeric_agg_mean, numeric_agg_std])
 
     def _get_aggregated_categorical_dataset_descriptor(self) -> np.ndarray:
@@ -214,8 +218,12 @@ class Dataset(Document):
                     continue
                 categorical_stats.append(feature_values)
             categorical_stats = np.array(categorical_stats)
-            categorical_agg_mean = np.mean(categorical_stats, axis=0)
-            categorical_agg_std = np.std(categorical_stats, axis=0)
+            if categorical_stats.size > 0:
+                categorical_agg_mean = np.mean(categorical_stats, axis=0)
+                categorical_agg_std = np.std(categorical_stats, axis=0)
+            else:
+                categorical_agg_mean = np.zeros(5)
+                categorical_agg_std = np.zeros(5)
         else:
             categorical_agg_mean = np.zeros(5)
             categorical_agg_std = np.zeros(5)
@@ -252,8 +260,12 @@ class Dataset(Document):
                     continue
                 unstructured_stats.append(feature_values)
             unstructured_stats = np.array(unstructured_stats)
-            unstructured_agg_mean = np.mean(unstructured_stats, axis=0)
-            unstructured_agg_std = np.std(unstructured_stats, axis=0)
+            if unstructured_stats.size > 0:
+                unstructured_agg_mean = np.mean(unstructured_stats, axis=0)
+                unstructured_agg_std = np.std(unstructured_stats, axis=0)
+            else:
+                unstructured_agg_mean = np.zeros(7)
+                unstructured_agg_std = np.zeros(7)
         else:
             unstructured_agg_mean = np.zeros(7)
             unstructured_agg_std = np.zeros(7)

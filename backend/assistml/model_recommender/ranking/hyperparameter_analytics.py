@@ -1,3 +1,4 @@
+from email.policy import default
 from typing import Dict, Any, ForwardRef
 
 from beanie import PydanticObjectId
@@ -28,7 +29,10 @@ class HyperparameterAnalytics:
         parameter_implementation = await self._document_cache.get_implementation(implementation_id)
         if hyperparameter_name not in parameter_implementation.parameters:
             raise ValueError(f"Hyperparameter {hyperparameter_name} not found in implementation {parameter_implementation.title}")
-        return value == parameter_implementation.parameters[hyperparameter_name].default_value
+        implementation_parameter = parameter_implementation.parameters[hyperparameter_name]
+        if implementation_parameter.type == "flag" and implementation_parameter.default_value is None:
+            return False
+        return value == implementation_parameter.default_value
 
     async def add_hyperparameter_value(self, implementation_id: PydanticObjectId, hyperparameter_name: str, value: Any):
         if await self._is_default_value(implementation_id, hyperparameter_name, value):

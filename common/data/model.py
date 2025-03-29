@@ -14,7 +14,7 @@ class Parameter(CustomBaseModel):
     name: str
     data_type: Optional[str] = None
     implementation: Link[Implementation]
-    value: Any
+    value: Optional[Any] = None
     default_value: Optional[Any] = None
 
 
